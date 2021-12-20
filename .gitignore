@@ -1,0 +1,7 @@
+node_modules/
+playground/
+admin/
+dist
+.cache
+src/config/config.json
+.DS_Store

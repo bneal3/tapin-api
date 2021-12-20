@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "target": "es2017",
+    "noImplicitAny": true,
+    "sourceMap": true,
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "alwaysStrict": true,
+    "resolveJsonModule": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true
+  },
+  "include": [
+    "./src/config/config.json",
+    "./src/**/*.ts"
+  ],
+  "exclude": [
+    "./node_modules",
+    "./src/public",
+    "./src/tests",
+    "./src/utils/__mocks__"
+  ]
+}
