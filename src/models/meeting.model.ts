@@ -7,33 +7,48 @@ export enum MeetingStatus {
   Pending,
   Accepted,
   Happened,
-  Canceled,
-  Ghosted,
-  Deleted
+  Canceled
 }
 
 export interface Meeting {
+  googleEventId: string;
   initiator: mongoose.Types.ObjectId | User;
   recipient: mongoose.Types.ObjectId | User;
-  title: String;
+  title: string;
   status: MeetingStatus;
   dateCreated: Date;
-  dateMeeting: Date;
+  dateStart: Date;
+  dateEnd: Date;
   dateStatusLastUpdated: Date;
 }
 
 export class CreateMeetingDto {
-  @IsString()
+  @IsOptional()
   public recipientId: string;
+
+  @IsOptional()
+  public email: string;
+
+  @IsOptional()
+  public name: string;
+
+  @IsOptional()
+  public recipient: (User & mongoose.Document);
 
   @IsString()
   public title: string;
 
-  @IsOptional()
-  public dayMeeting: string;
+  @IsString()
+  public timeStart: string;
 
   @IsOptional()
-  public dateMeeting: Date;
+  public dateStart: Date;
+
+  @IsString()
+  public timeEnd: string;
+
+  @IsOptional()
+  public dateEnd: Date;
 }
 
 export class EditMeetingDto {
@@ -44,10 +59,16 @@ export class EditMeetingDto {
   public status: number;
 
   @IsOptional()
-  public dayMeeting: string;
+  public timeStart: string;
 
   @IsOptional()
-  public dateMeeting: Date;
+  public dateStart: Date;
+
+  @IsOptional()
+  public timeEnd: string;
+
+  @IsOptional()
+  public dateEnd: Date;
 
   @IsOptional()
   public dayStatusLastUpdated: string;
@@ -57,6 +78,11 @@ export class EditMeetingDto {
 }
 
 const MeetingSchema = new mongoose.Schema({
+  googleEventId: {
+    type: String,
+    unique: true,
+    required: true
+  },
   initiator: {
     ref: 'User',
     type: mongoose.Schema.Types.ObjectId,
@@ -79,7 +105,11 @@ const MeetingSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   },
-  dateMeeting: {
+  dateStart: {
+    type: Date,
+    required: true
+  },
+  dateEnd: {
     type: Date,
     required: true
   },

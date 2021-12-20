@@ -9,12 +9,27 @@ class Cron {
 
   constructor() {}
 
-  public setNumberDeletionJob() {
+  // TODO: Create score update job
+  public setScoreUpdateJob() {
     const weeklyResetRule = new RecurrenceRule();
     weeklyResetRule.dayOfWeek = 6; // Monday
     weeklyResetRule.hour = 0; // 12pm PST
     weeklyResetRule.minute = 25; // 0
-    scheduleJob(weeklyResetRule, async () => {});
+    scheduleJob(weeklyResetRule, async () => {
+      // TODO: Go through each user's score list and add to score based on day since last meeting
+    });
+  }
+
+  // TODO: Create relationship reminder jobs
+  public setWeeklyReminderJob() {
+    const weeklyResetRule = new RecurrenceRule();
+    weeklyResetRule.dayOfWeek = 6; // Monday
+    weeklyResetRule.hour = 0; // 12pm PST
+    weeklyResetRule.minute = 25; // 0
+    scheduleJob(weeklyResetRule, async () => {
+      // TODO: Select one person from batch of relationships as flagship for email
+      // TODO: Send email
+    });
   }
 
   public static getInstance(): Cron {

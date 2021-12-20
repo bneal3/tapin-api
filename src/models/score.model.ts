@@ -1,26 +1,28 @@
 import * as mongoose from 'mongoose';
 // @ts-ignore
-import { IsOptional, IsNumber, IsDateString, IsDate, IsString } from 'class-validator';
+import { IsOptional, IsNumber, IsDateString, IsDate, IsString, IsObject } from 'class-validator';
 
 import { User } from './user.model';
 
 export interface Score {
-  user: mongoose.Schema.Types.ObjectId | User;
+  source: mongoose.Schema.Types.ObjectId | User;
   target: mongoose.Schema.Types.ObjectId | User;
-  value: Number;
+  value: number;
   dateCreated: Date;
 }
 
 export class CreateScoreDto {
-  @IsString()
-  public target: string;
+  @IsObject()
+  public target: (User & mongoose.Document);
+}
 
+export class UpdateScoreDto {
   @IsNumber()
   public value: number;
 }
 
 const ScoreSchema = new mongoose.Schema({
-  user: {
+  source: {
     ref: 'User',
     type: mongoose.Schema.Types.ObjectId,
     required: true
@@ -32,7 +34,7 @@ const ScoreSchema = new mongoose.Schema({
   },
   value: {
     type: Number,
-    required: true
+    default: 0
   },
   dateCreated: {
     type: Date,

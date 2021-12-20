@@ -5,6 +5,7 @@ import { IsOptional, IsNumber, IsDateString, IsString, IsBoolean, IsObject } fro
 export interface User {
   _id: mongoose.Types.ObjectId;
   googleAuthId: string;
+  googleAuthToken: string;
   email: string;
   name: string;
   referrer?: mongoose.Schema.Types.ObjectId | User;
@@ -17,7 +18,7 @@ export class RegisterUserDto {
   public googleAuthToken: string;
 
   @IsOptional()
-  googleAuthId: string;
+  public googleAuthId: string;
 
   @IsString()
   public email: string;
@@ -39,6 +40,12 @@ export class UserDto {
   public _id: any;
 
   @IsOptional()
+  public googleAuthToken: string;
+
+  @IsOptional()
+  public googleAuthId: string;
+
+  @IsOptional()
   public email: string;
 
   @IsOptional()
@@ -55,10 +62,11 @@ export class UserDto {
 }
 
 const UserSchema = new mongoose.Schema({
+  googleAuthToken: {
+    type: String
+  },
   googleAuthId: {
-    type: String,
-    unique: true,
-    required: true
+    type: String
   },
   email: {
     type: String,
