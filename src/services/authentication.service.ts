@@ -2,11 +2,21 @@ import * as bcrypt from 'bcryptjs';
 import * as jwt from 'jsonwebtoken';
 import * as mongoose from 'mongoose';
 
+const { OAuth2Client } = require('google-auth-library');
+const client = new OAuth2Client(process.env.GOOGLE_SIGN_IN_CLIENT_ID);
+
 import { HttpException, ServerProcessException, BadParametersException, NotAuthorizedException, UnrecognizedCredentialsException, ObjectAlreadyExistsException, ObjectNotFoundException } from '../utils/index';
 import { AccessType, AuthenticationTokenData } from '../interfaces/index';
 import { AuthenticationModel, Authentication, CredentialsDto, VerificationEmailDto, LoginDto, UserModel, User, RegisterUserDto } from '../models/index';
 import { logger, sendinblue } from '../utils/index';
 import { userService } from '../services/index';
+
+async function verify() {
+
+  // If request specified a G Suite domain:
+  // const domain = payload['hd'];
+}
+verify().catch(console.error);
 
 class AuthenticationService {
   private static instance: AuthenticationService;
@@ -35,6 +45,50 @@ class AuthenticationService {
 
   // FUNNEL: Step 2 - Register account
   public register = async (userData: RegisterUserDto) => {
+    const payload = await this.verifyGoogleAuthToken(userData.googleAuthToken);
+    userData.googleAuthId = payload['sub'];
+    try {
+      const registrationData =  {
+        ...userData,
+        dateRegistered: Date.now()
+      };
+      const user = await this.user.create(registrationData);
+      return await this.sanitizeTokenResponse(user);
+    } catch (err) {
+      if(err.message.indexOf('email') > -1) {
+        throw new ObjectAlreadyExistsException('User', 'email');
+      } else {
+        throw new HttpException(400, err.message);
+      }
+    }
+  }
+
+  public login = async (loginData: LoginDto) => {
+    const payload = await this.verifyGoogleAuthToken(loginData.googleAuthToken);
+    return await this.findOneAndLogin({ googleAuthId: payload['sub'] });
+  }
+
+  public verifyGoogleAuthToken = async (token: string) => {
+    try {
+      // FLOW: Verify auth token and get googleAuthId
+      const ticket = await client.verifyIdToken({
+        idToken: token,
+        audience: process.env.GOOGLE_SIGN_IN_CLIENT_ID
+      });
+      const payload = ticket.getPayload();
+      return payload;
+    } catch (err) {
+      throw new UnrecognizedCredentialsException();
+    }
+  }
+
+  public findOneAndLogin = async (identifier: any) => {
+    const user = await this.user.findOne({ ...identifier, dateRegistered: { $exists: true } });
+    if(user) {
+      return await this.sanitizeTokenResponse(user);
+    } else {
+      throw new UnrecognizedCredentialsException();
+    }
   }
 
   public async sanitizeTokenResponse(user: (User & mongoose.Document)) {

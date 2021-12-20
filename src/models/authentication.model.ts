@@ -24,20 +24,8 @@ export class VerificationEmailDto {
 }
 
 export class LoginDto {
-  @IsOptional()
-  public requestId: string;
-
-  @IsOptional()
-  public code: string;
-
-  @IsOptional()
-  public phone: string;
-
-  @IsOptional()
-  public email: string;
-
-  @IsOptional()
-  public password: string;
+  @IsString()
+  public googleAuthToken: string;
 }
 
 export class CredentialsDto {
