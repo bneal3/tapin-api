@@ -12,7 +12,6 @@ class ScoreController implements Controller {
   public path = '/scores';
   public router = express.Router();
   private score = ScoreModel;
-  private user = UserModel;
 
   constructor() {
     this.initializeRoutes();
@@ -22,34 +21,10 @@ class ScoreController implements Controller {
     this.router.get(`${this.path}`, authorize, this.get);
   }
 
-  private get = async (request: RequestWithUser, response: express.Response, next: express.NextFunction) => {
+  private get = async (request: express.Request, response: express.Response, next: express.NextFunction) => {
     try {
-      let user: any = request.query.user ?? { '$exists': true };
-      let target: any = request.query.target ?? { '$exists': true };
-      if(user === request.user._id.toString() || target === request.user._id.toString()) {
-        // FLOW: Get scores
-        const scores = await this.score.find({
-          user: user,
-          target: target
-        }).sort('-dateCreated').catch((err: Error) => { return []; });
-        if(scores.length > 0) {
-          if(request.query.latest) {
-            const score = scores[0];
-            if(!request.query.user) {
-              await score.populate('user').execPopulate();
-            } else if(!request.query.target) {
-              await score.populate('target').execPopulate();
-            }
-            response.send(score);
-          } else {
-            response.send(scores);
-          }
-        } else {
-          throw new ObjectNotFoundException('identifier(s)');
-        }
-      } else {
-        throw new BadParametersException();
-      }
+      const scores = await scoreService.getScores(request.query);
+      response.send(scores);
     } catch (err) {
       next(err);
     }
