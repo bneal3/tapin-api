@@ -12,8 +12,8 @@ export enum MeetingStatus {
 
 export interface Meeting {
   googleEventId: string;
-  initiator: mongoose.Types.ObjectId | User;
-  recipient: mongoose.Types.ObjectId | User;
+  initiator: mongoose.Schema.Types.ObjectId | User;
+  recipient: mongoose.Schema.Types.ObjectId | User;
   title: string;
   status: MeetingStatus;
   dateCreated: Date;

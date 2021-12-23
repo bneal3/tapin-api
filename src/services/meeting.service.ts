@@ -3,8 +3,8 @@ import * as mongoose from 'mongoose';
 import { HttpException, ObjectNotFoundException, BadParametersException, ServerProcessException  } from '../utils/index';
 import { AccessType } from '../interfaces/index';
 import { MeetingModel, Meeting, MeetingStatus, CreateMeetingDto, EditMeetingDto, ScoreModel, Score, UserModel, User } from '../models/index';
-import { google, logger } from '../utils/index';
-import { scoreService } from '../services/index';
+import { google, logger, sendinblue, EmailTemplate } from '../utils/index';
+import { authenticationService, scoreService } from '../services/index';
 
 class MeetingService {
   private static instance: MeetingService;
@@ -25,8 +25,8 @@ class MeetingService {
     const meetings = await this.meeting.find({
       $or: [
         { _id: { $in: ids }},
-        { initiator: mongoose.Types.ObjectId(initiatorId) },
-        { recipient: mongoose.Types.ObjectId(recipientId) }
+        { initiator: new mongoose.Schema.Types.ObjectId(initiatorId) },
+        { recipient: new mongoose.Schema.Types.ObjectId(recipientId) }
       ]
     }).catch((err: Error) => { return undefined; });
     if(meetings) {
@@ -67,8 +67,9 @@ class MeetingService {
       dateEnd: createMeetingData.dateEnd
     });
 
-    // TODO: Send email to recipient
-    // TODO: Queue followup email after the event
+    // FLOW: Send email to recipient
+    const authentication = await authenticationService.createToken(recipient._id, AccessType.auth, Number(process.env.AUTHENTICATION_EXPIRATION) * 3);
+    await sendinblue.sendTemplateEmail(EmailTemplate.Invitation, [{ email: recipient.email , name: recipient.name }], { FIRSTNAME: recipient.name.split(' ')[0], APPURL: process.env.APP_URL, _SI: authentication._si }, { name: process.env.APP_NAME, email: process.env.NOREPLY_EMAIL });
 
     // FLOW: Return meeting
     return meeting;
@@ -89,7 +90,12 @@ class MeetingService {
               }
             ]
           });
-          // TODO: Send email to initiator that recipient accepted invite
+          // FLOW: Send email to initiator that recipient accepted invite
+          const authentication = await authenticationService.createToken(user._id, AccessType.auth, Number(process.env.AUTHENTICATION_EXPIRATION) * 3);
+          await sendinblue.sendTemplateEmail(EmailTemplate.Accepted, [{ email: user.email , name: user.name }], { FIRSTNAME: user.name.split(' ')[0], APPURL: process.env.APP_URL, _SI: authentication._si }, { name: process.env.APP_NAME, email: process.env.NOREPLY_EMAIL });
+          // FLOW: Queue followup email after the event
+          const delay = (meeting.dateEnd.getTime() - (new Date()).getTime()) + Number(process.env.POST_EVENT_EMAIL_DELAY);
+          await sendinblue.queueEmail({ templateId: EmailTemplate.PostEvent, to: [{ email: user.email , name: user.name }], params: { FIRSTNAME: user.name.split(' ')[0], APPURL: process.env.APP_URL, _SI: authentication._si }, sender: { name: process.env.APP_NAME, email: process.env.NOREPLY_EMAIL }, user: user }, { delay: delay });
         } else if(editMeetingData.status === MeetingStatus.Happened) { // FLOW: If status is edited to Happened, increase score for rank/add new rank if one does not already exist
           let score = await this.score.findOne({
             source: user._id,
