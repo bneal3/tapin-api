@@ -1,15 +1,19 @@
 import { HttpException, ServerProcessException, NotAuthorizedException, UnrecognizedCredentialsException, BadParametersException, ObjectAlreadyExistsException, ObjectNotFoundException } from './exceptions';
 
+import Bull from './bull';
 import Cron from './cron';
 import Google from './google';
 import Logger from './logger'
-import Sendinblue, { EmailSchedule } from './sendinblue';
+import Redis, { RedisPrefix } from './redis';
+import Sendinblue, { EmailTemplate } from './sendinblue';
 
+const bull = Bull.getInstance();
 const cron = Cron.getInstance();
 const google = Google.getInstance();
 const logger = Logger.getInstance();
+const redis = Redis.getInstance();
 const sendinblue = Sendinblue.getInstance();
 
 export {
-    cron, google, logger, HttpException, ServerProcessException, NotAuthorizedException, UnrecognizedCredentialsException, BadParametersException, ObjectAlreadyExistsException, ObjectNotFoundException, sendinblue, EmailSchedule
+    bull, cron, google, logger, HttpException, ServerProcessException, NotAuthorizedException, UnrecognizedCredentialsException, BadParametersException, ObjectAlreadyExistsException, ObjectNotFoundException, redis, RedisPrefix, sendinblue, EmailTemplate
 }
