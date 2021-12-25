@@ -1,16 +1,23 @@
 import * as API from 'ioredis';
 import Logger from './logger';
 
-export enum RedisPrefix {
-  PhoneVerification = "ver"
-}
+export enum RedisPrefix {}
 
 class Redis {
   private static instance: Redis;
   public api = API;
-  public client = new API(process.env.REDISCLOUD_URL);
-  public publisher = new API(process.env.REDISCLOUD_URL);
-  public subscriber = new API(process.env.REDISCLOUD_URL);
+  public client = new API(process.env.REDISCLOUD_URL, {
+    maxRetriesPerRequest: null,
+    enableReadyCheck: false
+   });
+  public publisher = new API(process.env.REDISCLOUD_URL, {
+    maxRetriesPerRequest: null,
+    enableReadyCheck: false
+   });
+  public subscriber = new API(process.env.REDISCLOUD_URL, {
+    maxRetriesPerRequest: null,
+    enableReadyCheck: false
+   });
 
   constructor() {
     this.client.on('connect', function () { Logger.getInstance().logger.debug('Client connected to redis'); });

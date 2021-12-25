@@ -16,7 +16,10 @@ class Bull {
       case 'subscriber':
         return Redis.getInstance().subscriber;
       default:
-        return new (Redis.getInstance()).api(process.env.REDISCLOUD_URL);
+        return new (Redis.getInstance()).api(process.env.REDISCLOUD_URL, {
+          maxRetriesPerRequest: null,
+          enableReadyCheck: false
+        });
     }
   }
 
