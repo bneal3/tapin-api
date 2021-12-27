@@ -43,6 +43,7 @@ class UserService {
 
   public editMe = async (user: (User & mongoose.Document), editUserData: EditUserDto) => {
     if(editUserData.email) { editUserData.email = this.sanitizeEmail(editUserData.email); }
+    // TODO: Add scores to user if email already exists in database
     try {
       user = await this.user.findByIdAndUpdate(user._id, editUserData, { new: true });
     } catch (err) {

@@ -1,7 +1,7 @@
 node_modules/
 playground/
-admin/
 dist
 .cache
 src/config/config.json
+src/tests/seed/seed_data.json
 .DS_Store

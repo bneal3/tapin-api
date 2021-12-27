@@ -7,13 +7,14 @@ const client = new OAuth2Client(process.env.GOOGLE_AUTH_CLIENT_ID);
 
 import { HttpException, ServerProcessException, BadParametersException, NotAuthorizedException, UnrecognizedCredentialsException, ObjectAlreadyExistsException, ObjectNotFoundException } from '../utils/index';
 import { AccessType, AuthenticationTokenData } from '../interfaces/index';
-import { AuthenticationModel, Authentication, CredentialsDto, VerificationEmailDto, LoginDto, UserModel, User, RegisterUserDto } from '../models/index';
-import { logger, sendinblue } from '../utils/index';
+import { AuthenticationModel, Authentication, LoginDto, ScoreModel, Score, UserModel, User, RegisterUserDto } from '../models/index';
+import { logger, google, sendinblue, EmailTemplate } from '../utils/index';
 import { userService } from '../services/index';
 
 class AuthenticationService {
   private static instance: AuthenticationService;
   private authentication = AuthenticationModel;
+  private score = ScoreModel;
   private user = UserModel;
 
   public get = async (_si: string) => {
@@ -27,25 +28,37 @@ class AuthenticationService {
     }
   }
 
-  public verifyEmail = async (verificationEmailData: VerificationEmailDto, user: (User & mongoose.Document)) => {
-    // FLOW: Create token
-    const token = jwt.sign({ _id: user._id.toString(), email: verificationEmailData.target }, process.env.JWT_SECRET, { expiresIn: Number(Math.ceil(60 * 60 * Number(process.env.AUTHENTICATION_EXPIRATION)).toFixed(0)) })
-    // FLOW: Send url in email
-    const authentication = await this.createToken(user._id, AccessType.auth, Number(process.env.AUTHENTICATION_EXPIRATION) * 3);
-    await sendinblue.sendTemplateEmail(2, [{ email: verificationEmailData.target , name: user.name }], { FIRSTNAME: (user.name).split(' ')[0], APPURL: process.env.APP_URL, _SI: authentication._si, TOKEN: token, ONBOARD: verificationEmailData.onboard ?? 'false' }, { name: process.env.APP_NAME, email: process.env.NOREPLY_EMAIL });
-    return token;
-  }
-
   // FUNNEL: Step 2 - Register account
   public register = async (userData: RegisterUserDto) => {
     const payload = await this.verifyGoogleAuthToken(userData.googleAuthToken);
     userData.googleAuthId = payload['sub'];
+    userData.email = payload['email'];
+    userData.name = payload['name'];
+    let user: (User & mongoose.Document) = await this.user.findOne({ email: userData.email });
     try {
-      const registrationData =  {
-        ...userData,
-        dateRegistered: Date.now()
-      };
-      const user = await this.user.create(registrationData);
+      if(!user) {
+        user = await this.user.create({
+          ...userData,
+          dateRegistered: Date.now()
+        });
+      } else if(!user.dateRegistered) {
+        user = await this.user.findByIdAndUpdate(user._id, {
+          name: userData.name,
+          dateRegistered: new Date()
+        }, { new: true });
+        // FLOW: Add scores to user if email already exists in database
+        const scores = await this.score.find({ target: user._id });
+        const promises: any[] = [];
+        scores.forEach((score) => {
+          const relation = this.score.create({
+            source: user._id,
+            target: score.source,
+            value: score.value
+          });
+          promises.push(relation);
+        });
+        await Promise.all(promises);
+      }
       return await this.sanitizeTokenResponse(user);
     } catch (err) {
       if(err.message.indexOf('email') > -1) {
@@ -69,8 +82,10 @@ class AuthenticationService {
         audience: process.env.GOOGLE_AUTH_CLIENT_ID
       });
       const payload = ticket.getPayload();
+      console.log(payload);
       return payload;
     } catch (err) {
+      console.log(err);
       throw new UnrecognizedCredentialsException();
     }
   }

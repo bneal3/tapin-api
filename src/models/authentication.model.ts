@@ -12,31 +12,9 @@ export interface Authentication {
   dateIssued: Date;
 }
 
-export class VerificationEmailDto {
-  @IsString()
-  public current: string;
-
-  @IsString()
-  public target: string;
-
-  @IsOptional()
-  public onboard: string;
-}
-
 export class LoginDto {
   @IsString()
   public googleAuthToken: string;
-}
-
-export class CredentialsDto {
-  @IsOptional()
-  public alias: string;
-
-  @IsOptional()
-  public name: string;
-
-  @IsOptional()
-  public title: string;
 }
 
 const AuthenticationSchema = new mongoose.Schema({

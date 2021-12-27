@@ -5,7 +5,7 @@ import * as mongoose from 'mongoose';
 import { NotAuthorizedException, BadParametersException } from '../utils';
 import { Controller, RequestWithUser, AuthenticationTokenData } from '../interfaces/index';
 import { admin, authorize, auth, validation } from '../middleware/index';
-import { AuthenticationModel, VerificationEmailDto, LoginDto, CredentialsDto, UserModel, User, RegisterUserDto } from '../models/index';
+import { AuthenticationModel, LoginDto, UserModel, User, RegisterUserDto } from '../models/index';
 import { logger} from '../utils/index';
 import { authenticationService, userService } from '../services/index';
 
@@ -20,8 +20,8 @@ class AuthenticationController implements Controller {
 
   private initializeRoutes() {
     this.router.get(`${this.path}`, this.getAuthentication);
-    this.router.post(`${this.path}/verify/email`, validation(VerificationEmailDto), this.postVerifyEmail);
     this.router.post(`${this.path}/register`, validation(RegisterUserDto), this.postRegister);
+    this.router.post(`${this.path}/login`, validation(LoginDto), this.postLogin);
   }
 
   private getAuthentication = async (request: express.Request, response: express.Response, next: express.NextFunction) => {
@@ -37,33 +37,27 @@ class AuthenticationController implements Controller {
     }
   }
 
-  private postVerifyEmail = async (request: express.Request, response: express.Response, next: express.NextFunction) => {
-    const verificationEmailData: VerificationEmailDto = request.body;
+  private postRegister = async (request: express.Request, response: express.Response, next: express.NextFunction) => {
+    const userData: RegisterUserDto = request.body;
     try {
-      // FLOW: Get user if one not in set to account
-      let user: (User & mongoose.Document);
-      if(verificationEmailData.current === verificationEmailData.target) {
-        user = await this.user.findOne({ email: verificationEmailData.current });
-      } else {
-        user = await auth(request, response, next);
-      }
-      if(user) {
-        await authenticationService.verifyEmail(verificationEmailData, user);
-        response.send();
-      } else {
-        throw new NotAuthorizedException();
-      }
+      const { authentication, user } = await authenticationService.register(userData);
+      response.send({
+        token: authentication.token,
+        user: await userService.userData(user)
+      });
     } catch (err) {
-      console.log(err);
       next(err);
     }
   }
 
-  private postRegister = async (request: express.Request, response: express.Response, next: express.NextFunction) => {
-    const userData: RegisterUserDto = request.body;
+  private postLogin = async (request: express.Request, response: express.Response, next: express.NextFunction) => {
+    const loginData: LoginDto = request.body;
     try {
-      await authenticationService.register(userData);
-      response.send({});
+      const { authentication, user } = await authenticationService.login(loginData);
+      response.send({
+        token: authentication.token,
+        user: await userService.userData(user)
+      });
     } catch (err) {
       next(err);
     }

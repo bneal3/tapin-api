@@ -18,13 +18,14 @@ class Google {
   }
 
   public async getEvent(client: any, eventId: string) {
-    const calendar = google.calendar({ auth: client });
+    const calendar = google.calendar({ version: 'v3', auth: client });
     return await new Promise((resolve, reject) => {
       calendar.events.insert({
         calendarId: 'primary',
         eventId: eventId
       }, (err: any, event: any) => {
         if(err) {
+          console.log(err);
           reject(err);
         } else{
           console.log(event);
@@ -35,7 +36,8 @@ class Google {
   }
 
   public async createEvent(client: any, createMeetingData: CreateMeetingDto) {
-    const calendar = google.calendar({ auth: client });
+    const calendar = google.calendar({ version: 'v3', auth: client });
+    console.log(calendar);
     return await new Promise((resolve, reject) => {
       calendar.events.insert({
         calendarId: 'primary',
@@ -54,6 +56,7 @@ class Google {
         }
       }, (err: any, event: any) => {
         if(err) {
+          console.log(err);
           reject(err);
         } else{
           console.log(event);
@@ -64,7 +67,7 @@ class Google {
   }
 
   public async updateEvent(client: any, eventId: string, updateData: any) {
-    const calendar = google.calendar({ auth: client });
+    const calendar = google.calendar({ version: 'v3', auth: client });
     return await new Promise((resolve, reject) => {
       calendar.events.udpate({
         calendarId: 'primary',
@@ -73,6 +76,7 @@ class Google {
         resource: updateData
       }, (err: any, res: any) => {
         if(err) {
+          console.log(err);
           reject(err);
         } else{
           console.log(event);
@@ -83,7 +87,7 @@ class Google {
   }
 
   public async cancelEvent(client: any, eventId: string) {
-    const calendar = google.calendar({ auth: client });
+    const calendar = google.calendar({ version: 'v3', auth: client });
     await new Promise((resolve, reject) => {
       calendar.events.delete({
         calendarId: 'primary',
@@ -91,6 +95,7 @@ class Google {
         sendUpdates: 'none',
       }, (err: any, res: any) => {
         if(err) {
+          console.log(err);
           reject();
         } else{
           resolve();

@@ -17,7 +17,7 @@ class MeetingController implements Controller {
   }
 
   private initializeRoutes() {
-    this.router.get(`${this.path}`, this.get);
+    this.router.get(`${this.path}`, authorize, this.get);
     this.router.post(`${this.path}`, authorize, validation(CreateMeetingDto), this.post);
     this.router.patch(`${this.path}/:id`, authorize, validation(EditMeetingDto), this.patch);
     this.router.delete(`${this.path}/:id`, authorize, this.delete);

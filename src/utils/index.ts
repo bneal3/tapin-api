@@ -1,3 +1,5 @@
+import * as mongoose from 'mongoose';
+
 import { HttpException, ServerProcessException, NotAuthorizedException, UnrecognizedCredentialsException, BadParametersException, ObjectAlreadyExistsException, ObjectNotFoundException } from './exceptions';
 
 import Bull from './bull';
@@ -14,6 +16,19 @@ const logger = Logger.getInstance();
 const redis = Redis.getInstance();
 const sendinblue = Sendinblue.getInstance();
 
+// Helper Functions
+async function connectToDatabase() {
+  try {
+    await mongoose.connect(process.env.MONGODB_URI, {
+      useFindAndModify: false,
+      useUnifiedTopology: true,
+      useNewUrlParser: true
+    });
+  } catch (err) {
+    Logger.getInstance().logger.error('Problem connecting to mongodb', { metadata: err });
+  }
+}
+
 export {
-    bull, cron, google, logger, HttpException, ServerProcessException, NotAuthorizedException, UnrecognizedCredentialsException, BadParametersException, ObjectAlreadyExistsException, ObjectNotFoundException, redis, RedisPrefix, sendinblue, EmailTemplate
+    connectToDatabase, bull, cron, google, logger, HttpException, ServerProcessException, NotAuthorizedException, UnrecognizedCredentialsException, BadParametersException, ObjectAlreadyExistsException, ObjectNotFoundException, redis, RedisPrefix, sendinblue, EmailTemplate
 }

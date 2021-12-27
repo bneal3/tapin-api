@@ -10,7 +10,8 @@ export enum EmailTemplate {
   Invitation,
   Accepted,
   PostEvent,
-  Reminder
+  Reminder,
+  EmailVerification
 }
 
 class Sendinblue {
