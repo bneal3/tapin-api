@@ -5,6 +5,7 @@ import { AccessType } from '../interfaces/index';
 import { Meeting, MeetingModel, MeetingStatus, Score, ScoreModel, User, UserModel } from '../models/index';
 import Logger from './logger';
 import Sendinblue, { EmailTemplate } from './sendinblue';
+import Bull from './bull';
 
 import { authenticationService } from '../services/index';
 
@@ -15,8 +16,19 @@ class Cron {
   private score = ScoreModel;
   private user = UserModel;
 
+  private reminderEmailCacheOptions = {
+    defaultJobOptions: {
+      backoff: { type: 'fixed', delay: 10000 },
+      attempts: 6,
+      removeOnComplete: true
+    },
+    createClient: Bull.getInstance().createClient
+  };
+
   constructor() {
+    Bull.getInstance().get(`reminderEmailCache`, this.reminderEmailCacheOptions, () => {});
     this.setScoreUpdateJob();
+    this.setRelationshipReminderJob();
   }
 
   // FLOW: Create score update job
@@ -44,7 +56,7 @@ class Cron {
               status: MeetingStatus.Happened
             }).sort(['dateStart', -1]);
             // FLOW: Calculate score
-            const value = meetings.length / Math.pow((new Date()).getDay() - meetings[0].dateStart.getDay(), Number(process.env.GRAVITY_CONSTANT));
+            const value = meetings.length / Math.pow(((new Date()).getDay() - meetings[0].dateStart.getDay()) + 2, Number(process.env.GRAVITY_CONSTANT));
             // FLOW: Update score
             await this.score.findByIdAndUpdate(score._id, { value: value });
           });
@@ -54,6 +66,7 @@ class Cron {
   }
 
   // FLOW: Create relationship reminder job
+  // TODO: Cache who was in featured email by queueing who was featured in bull and then having the entry dissipate after x weeks
   public setRelationshipReminderJob() {
     const weeklyResetRule = new RecurrenceRule();
     weeklyResetRule.dayOfWeek = 0; // Sunday
@@ -80,7 +93,8 @@ class Cron {
               status: MeetingStatus.Happened
             }).sort(['dateStart', -1]);
             // FLOW: Check if time between now and last meeting is greater than minimum follow up reminder time
-            if(meetings[0].dateEnd.getTime() - (new Date()).getTime() >= Number(process.env.MINIMUM_REMINDER_TIME)) { featuredIndex = index; }
+            if((new Date()).getTime() - meetings[0].dateEnd.getTime() >= Number(process.env.MINIMUM_REMINDER_TIME) * 30) { featuredIndex = index; }
+            // TODO: Check if current user is in cache, if so set featuredIndex = -1
           });
           if(featuredIndex >= 0) {
             await scoreGroup[featuredIndex].populate('target').execPopulate();
@@ -88,6 +102,7 @@ class Cron {
             // FLOW: Send email
             const authentication = await authenticationService.createToken(source._id, AccessType.auth, Number(process.env.AUTHENTICATION_EXPIRATION) * 3);
             await Sendinblue.getInstance().sendTemplateEmail(EmailTemplate.Reminder, [{ email: source.email , name: source.name }], { FIRSTNAME: source.name.split(' ')[0], FEATUREDNAME: target.name, APPURL: process.env.APP_URL, _SI: authentication._si }, { name: process.env.APP_NAME, email: process.env.NOREPLY_EMAIL });
+            // TODO: Add user to cache
           }
         });
       });

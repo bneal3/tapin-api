@@ -4,8 +4,8 @@ import { IsOptional, IsNumber, IsDateString, IsString, IsBoolean, IsObject } fro
 
 export interface User {
   _id: mongoose.Types.ObjectId;
-  googleAuthId: string;
-  googleAuthToken: string;
+  googleAuthId?: string;
+  googleAuthToken?: string;
   email: string;
   name: string;
   referrer?: mongoose.Schema.Types.ObjectId | User;
@@ -20,10 +20,10 @@ export class RegisterUserDto {
   @IsOptional()
   public googleAuthId: string;
 
-  @IsString()
+  @IsOptional()
   public email: string;
 
-  @IsString()
+  @IsOptional()
   public name: string;
 }
 

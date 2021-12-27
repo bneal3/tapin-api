@@ -13,6 +13,9 @@ export interface Score {
 
 export class CreateScoreDto {
   @IsObject()
+  public source: (User & mongoose.Document);
+
+  @IsObject()
   public target: (User & mongoose.Document);
 }
 

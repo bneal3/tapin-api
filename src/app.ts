@@ -4,13 +4,13 @@ import * as express from 'express';
 import * as helmet from 'helmet';
 import * as morgan from 'morgan';
 import * as path from 'path';
-import * as mongoose from 'mongoose';
 
 import './config/index';
 import './utils/passport';
 
 import { Controller } from './interfaces/index';
 import Logger from './utils/logger';
+import { connectToDatabase } from './utils';
 import { error } from './middleware/index';
 
 class App {
@@ -59,18 +59,6 @@ class App {
 
   private initializeViews() {
     this.app.use(express.static(path.join(__dirname, 'public')));
-  }
-}
-
-async function connectToDatabase() {
-  try {
-    await mongoose.connect(process.env.MONGODB_URI, {
-      useFindAndModify: false,
-      useUnifiedTopology: true,
-      useNewUrlParser: true
-    });
-  } catch (err) {
-    Logger.getInstance().logger.error('Problem connecting to mongodb', { metadata: err });
   }
 }
 

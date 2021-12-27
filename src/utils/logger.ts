@@ -9,7 +9,7 @@ class Logger {
   public logger: winston.Logger;
   private transport = new MongoDB({
     level: 'info',
-    db: process.env.MONGODB_URI ?? `mongodb://localhost:27017/ReachMeApp`,
+    db: process.env.MONGODB_URI ?? `mongodb://localhost:27017/TapInApp`,
     options: {
       useUnifiedTopology: true
     },

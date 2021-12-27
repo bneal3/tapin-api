@@ -16,6 +16,7 @@
     "dev": "nodemon --watch src -e ts --exec npm run dev:start",
     "start": "npm run serve",
     "serve": "node dist/server.js",
+    "seed": "ts-node src/tests/seed/seed.ts NODE_ENV=test",
     "pretest": "cross-env NODE_ENV=test npm run clean",
     "test": "cross-env NODE_ENV=test jest --runInBand --testTimeout=10000",
     "test:watch": "cross-env NODE_ENV=test jest --watch --testTimeout=10000"
@@ -46,7 +47,8 @@
     "shortid": "^2.2.16",
     "sib-api-v3-sdk": "^8.2.1",
     "winston": "^3.2.1",
-    "winston-mongodb": "^5.0.1"
+    "winston-mongodb": "^5.0.1",
+    "yargs": "^17.3.1"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.2",
@@ -67,6 +69,7 @@
     "@types/shortid": "0.0.29",
     "@types/supertest": "^2.0.8",
     "@types/winston": "^2.4.4",
+    "@types/yargs": "^17.0.8",
     "cross-env": "^7.0.2",
     "jest": "^25.1.0",
     "node-gyp": "^6.1.0",
