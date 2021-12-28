@@ -4,23 +4,25 @@ const { google } = require('googleapis');
 import { Meeting, CreateMeetingDto, User, UserModel } from '../models/index';
 import Logger from './logger';
 
-class Google {
-  private static instance: Google;
+class Calendar {
+  private static instance: Calendar;
 
   private api = google;
 
   constructor() {}
 
-  public async createClient(token: string) {
-    const oauthClient = new this.api.auth.OAuth2(process.env.GOOGLE_AUTH_CLIENT_ID, process.env.GOOGLE_AUTH_CLIENT_SECRET);
-    oauthClient.setCredentials(token);
-    return oauthClient;
+  // TODO: Cause special exception if refreshToken no longer works to signal to frontend to re-sign in
+  public async createClient(refreshToken: string) {
+    const client = new this.api.auth.OAuth2(process.env.GOOGLE_AUTH_CLIENT_ID, process.env.GOOGLE_AUTH_CLIENT_SECRET, process.env.APP_URL);
+    client.setCredentials({ refresh_token: refreshToken });
+    return client;
   }
 
   public async getEvent(client: any, eventId: string) {
     const calendar = google.calendar({ version: 'v3', auth: client });
     return await new Promise((resolve, reject) => {
-      calendar.events.insert({
+      calendar.events.list({
+        auth: client,
         calendarId: 'primary',
         eventId: eventId
       }, (err: any, event: any) => {
@@ -37,18 +39,18 @@ class Google {
 
   public async createEvent(client: any, createMeetingData: CreateMeetingDto) {
     const calendar = google.calendar({ version: 'v3', auth: client });
-    console.log(calendar);
     return await new Promise((resolve, reject) => {
       calendar.events.insert({
+        auth: client,
         calendarId: 'primary',
         sendUpdates: 'none',
         resource: {
           summary: createMeetingData.title,
           start: {
-            dateTime: createMeetingData.dateStart.toString()
+            dateTime: createMeetingData.timeStart
           },
           end: {
-            dateTime: createMeetingData.dateEnd.toString()
+            dateTime: createMeetingData.timeEnd
           },
           attendees: [
             { email: createMeetingData.recipient.email }
@@ -90,6 +92,7 @@ class Google {
     const calendar = google.calendar({ version: 'v3', auth: client });
     await new Promise((resolve, reject) => {
       calendar.events.delete({
+        auth: client,
         calendarId: 'primary',
         eventId: eventId,
         sendUpdates: 'none',
@@ -104,12 +107,12 @@ class Google {
     });
   }
 
-  public static getInstance(): Google {
-    if (!Google.instance) {
-      Google.instance = new Google();
+  public static getInstance(): Calendar {
+    if (!Calendar.instance) {
+      Calendar.instance = new Calendar();
     }
-    return Google.instance;
+    return Calendar.instance;
   }
 }
 
-export default Google;
+export default Calendar;

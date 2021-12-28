@@ -37,6 +37,7 @@ class UserService {
 
   public userData = async (user: (User & mongoose.Document)) => {
     const data: any = user.toObject();
+    user.googleRefreshToken = undefined;
     return data;
   }
 

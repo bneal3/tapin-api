@@ -3,18 +3,18 @@ import * as mongoose from 'mongoose';
 import { HttpException, ServerProcessException, NotAuthorizedException, UnrecognizedCredentialsException, BadParametersException, ObjectAlreadyExistsException, ObjectNotFoundException } from './exceptions';
 
 import Bull from './bull';
+import Calendar from './calendar';
 import Cron from './cron';
-import Google from './google';
+import Email, { EmailTemplate } from './email';
 import Logger from './logger'
 import Redis, { RedisPrefix } from './redis';
-import Sendinblue, { EmailTemplate } from './sendinblue';
 
 const bull = Bull.getInstance();
+const calendar = Calendar.getInstance();
 const cron = Cron.getInstance();
-const google = Google.getInstance();
+const email = Email.getInstance();
 const logger = Logger.getInstance();
 const redis = Redis.getInstance();
-const sendinblue = Sendinblue.getInstance();
 
 // Helper Functions
 async function connectToDatabase() {
@@ -30,5 +30,5 @@ async function connectToDatabase() {
 }
 
 export {
-    connectToDatabase, bull, cron, google, logger, HttpException, ServerProcessException, NotAuthorizedException, UnrecognizedCredentialsException, BadParametersException, ObjectAlreadyExistsException, ObjectNotFoundException, redis, RedisPrefix, sendinblue, EmailTemplate
+    bull, calendar, cron, email, EmailTemplate, logger, redis, RedisPrefix, connectToDatabase, HttpException, ServerProcessException, NotAuthorizedException, UnrecognizedCredentialsException, BadParametersException, ObjectAlreadyExistsException, ObjectNotFoundException
 }

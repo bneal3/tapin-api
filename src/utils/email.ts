@@ -14,8 +14,8 @@ export enum EmailTemplate {
   EmailVerification
 }
 
-class Sendinblue {
-  private static instance: Sendinblue;
+class Email {
+  private static instance: Email;
 
   private client = SendinBlueAPI.ApiClient.instance;
   private transactionalAPI = new SendinBlueAPI.TransactionalEmailsApi();
@@ -57,9 +57,9 @@ class Sendinblue {
   }
 
   public async emailJob(job: Job) {
-    let shouldSend = await Sendinblue.getInstance().shouldSend(job.data);
+    let shouldSend = await Email.getInstance().shouldSend(job.data);
     if(shouldSend) {
-      return await Sendinblue.getInstance().sendTemplateEmail(job.data.templateId, job.data.to, job.data.params, job.data.sender);
+      return await Email.getInstance().sendTemplateEmail(job.data.templateId, job.data.to, job.data.params, job.data.sender);
     }
     return false;
   }
@@ -93,12 +93,12 @@ class Sendinblue {
     return false;
   }
 
-  public static getInstance(): Sendinblue {
-    if (!Sendinblue.instance) {
-      Sendinblue.instance = new Sendinblue();
+  public static getInstance(): Email {
+    if (!Email.instance) {
+      Email.instance = new Email();
     }
-    return Sendinblue.instance;
+    return Email.instance;
   }
 }
 
-export default Sendinblue;
+export default Email;

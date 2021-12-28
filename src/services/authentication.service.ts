@@ -3,12 +3,11 @@ import * as jwt from 'jsonwebtoken';
 import * as mongoose from 'mongoose';
 
 const { OAuth2Client } = require('google-auth-library');
-const client = new OAuth2Client(process.env.GOOGLE_AUTH_CLIENT_ID);
 
 import { HttpException, ServerProcessException, BadParametersException, NotAuthorizedException, UnrecognizedCredentialsException, ObjectAlreadyExistsException, ObjectNotFoundException } from '../utils/index';
 import { AccessType, AuthenticationTokenData } from '../interfaces/index';
 import { AuthenticationModel, Authentication, LoginDto, ScoreModel, Score, UserModel, User, RegisterUserDto } from '../models/index';
-import { logger, google, sendinblue, EmailTemplate } from '../utils/index';
+import { logger } from '../utils/index';
 import { userService } from '../services/index';
 
 class AuthenticationService {
@@ -30,10 +29,13 @@ class AuthenticationService {
 
   // FUNNEL: Step 2 - Register account
   public register = async (userData: RegisterUserDto) => {
-    const payload = await this.verifyGoogleAuthToken(userData.googleAuthToken);
-    userData.googleAuthId = payload['sub'];
-    userData.email = payload['email'];
-    userData.name = payload['name'];
+    const client = new OAuth2Client(process.env.GOOGLE_AUTH_CLIENT_ID, process.env.GOOGLE_AUTH_CLIENT_SECRET, process.env.APP_URL);
+    const payload = await this.verifyGoogleAuthCode(client, userData.googleAuthCode);
+    userData.googleId = payload.userInfo['sub'];
+    userData.googleRefreshToken = payload.tokens.refresh_token;
+    userData.email = payload.userInfo['email'];
+    userData.name = payload.userInfo['name'];
+    // TODO: Get refresh token
     let user: (User & mongoose.Document) = await this.user.findOne({ email: userData.email });
     try {
       if(!user) {
@@ -70,31 +72,32 @@ class AuthenticationService {
   }
 
   public login = async (loginData: LoginDto) => {
-    const payload = await this.verifyGoogleAuthToken(loginData.googleAuthToken);
-    return await this.findOneAndLogin({ googleAuthId: payload['sub'] }, loginData.googleAuthToken);
+    const client = new OAuth2Client(process.env.GOOGLE_AUTH_CLIENT_ID, process.env.GOOGLE_AUTH_CLIENT_SECRET, process.env.APP_URL);
+    const payload = await this.verifyGoogleAuthCode(client, loginData.googleAuthCode);
+    return await this.findOneAndLogin({ googleId: payload.userInfo['sub'] });
   }
 
-  public verifyGoogleAuthToken = async (token: string) => {
+  public verifyGoogleAuthCode = async (client: any, authCode: string) => {
     try {
-      // FLOW: Verify auth token and get googleAuthId
-      const ticket = await client.verifyIdToken({
-        idToken: token,
+      // FLOW: Get auth tokens from auth code
+      const tokens = (await client.getToken(authCode)).tokens;
+      // FLOW: Verify auth token and get googleId
+      const userInfo = (await client.verifyIdToken({
+        idToken: tokens.id_token,
         audience: process.env.GOOGLE_AUTH_CLIENT_ID
-      });
-      const payload = ticket.getPayload();
-      console.log(payload);
-      return payload;
+      })).getPayload();
+      console.log(tokens);
+      console.log(userInfo);
+      return { tokens, userInfo };
     } catch (err) {
       console.log(err);
       throw new UnrecognizedCredentialsException();
     }
   }
 
-  public findOneAndLogin = async (identifier: any, googleAuthToken: string) => {
+  public findOneAndLogin = async (identifier: any) => {
     let user = await this.user.findOne({ ...identifier, dateRegistered: { $exists: true } });
     if(user) {
-      // FLOW: Update user auth token
-      user = await this.user.findByIdAndUpdate(user._id, { googleAuthToken: googleAuthToken }, { new: true });
       return await this.sanitizeTokenResponse(user);
     } else {
       throw new UnrecognizedCredentialsException();

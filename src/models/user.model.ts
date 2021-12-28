@@ -4,8 +4,8 @@ import { IsOptional, IsNumber, IsDateString, IsString, IsBoolean, IsObject } fro
 
 export interface User {
   _id: mongoose.Types.ObjectId;
-  googleAuthId?: string;
-  googleAuthToken?: string;
+  googleId?: string;
+  googleRefreshToken?: string;
   email: string;
   name: string;
   referrer?: mongoose.Schema.Types.ObjectId | User;
@@ -15,10 +15,13 @@ export interface User {
 
 export class RegisterUserDto {
   @IsString()
-  public googleAuthToken: string;
+  public googleAuthCode: string;
 
   @IsOptional()
-  public googleAuthId: string;
+  public googleId: string;
+
+  @IsOptional()
+  public googleRefreshToken: string;
 
   @IsOptional()
   public email: string;
@@ -40,10 +43,10 @@ export class UserDto {
   public _id: any;
 
   @IsOptional()
-  public googleAuthToken: string;
+  public googleId: string;
 
   @IsOptional()
-  public googleAuthId: string;
+  public googleRefreshToken: string;
 
   @IsOptional()
   public email: string;
@@ -62,10 +65,10 @@ export class UserDto {
 }
 
 const UserSchema = new mongoose.Schema({
-  googleAuthToken: {
+  googleId: {
     type: String
   },
-  googleAuthId: {
+  googleRefreshToken: {
     type: String
   },
   email: {

@@ -7,7 +7,7 @@ import { BadParametersException, NotAuthorizedException, ObjectAlreadyExistsExce
 import { AccessType, Controller, RequestWithUser } from '../interfaces/index';
 import { authorize, admin, validation } from '../middleware/index';
 import { UserModel, User, EditUserDto, UserDto } from '../models/index';
-import { logger, sendinblue } from '../utils/index';
+import { logger } from '../utils/index';
 import { authenticationService, userService } from '../services/index';
 
 class UserController implements Controller {
