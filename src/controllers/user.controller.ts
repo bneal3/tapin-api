@@ -2,13 +2,12 @@ import * as bcrypt from 'bcryptjs';
 import * as express from 'express';
 import * as mongoose from 'mongoose';
 import * as path from 'path';
-const http = require('request').defaults({ encoding: null });
 
 import { BadParametersException, NotAuthorizedException, ObjectAlreadyExistsException, ObjectNotFoundException } from '../utils/index';
 import { AccessType, Controller, RequestWithUser } from '../interfaces/index';
 import { authorize, admin, validation } from '../middleware/index';
 import { UserModel, User, EditUserDto, UserDto } from '../models/index';
-import { logger, sendinblue } from '../utils/index';
+import { logger } from '../utils/index';
 import { authenticationService, userService } from '../services/index';
 
 class UserController implements Controller {

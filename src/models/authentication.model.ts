@@ -14,7 +14,7 @@ export interface Authentication {
 
 export class LoginDto {
   @IsString()
-  public googleAuthToken: string;
+  public googleAuthCode: string;
 }
 
 const AuthenticationSchema = new mongoose.Schema({

@@ -4,7 +4,7 @@ import * as mongoose from 'mongoose';
 import { AccessType } from '../interfaces/index';
 import { Meeting, MeetingModel, MeetingStatus, Score, ScoreModel, User, UserModel } from '../models/index';
 import Logger from './logger';
-import Sendinblue, { EmailTemplate } from './sendinblue';
+import Email, { EmailTemplate } from './email';
 import Bull from './bull';
 
 import { authenticationService } from '../services/index';
@@ -101,7 +101,7 @@ class Cron {
             const target = <User & mongoose.Document>scoreGroup[featuredIndex].target;
             // FLOW: Send email
             const authentication = await authenticationService.createToken(source._id, AccessType.auth, Number(process.env.AUTHENTICATION_EXPIRATION) * 3);
-            await Sendinblue.getInstance().sendTemplateEmail(EmailTemplate.Reminder, [{ email: source.email , name: source.name }], { FIRSTNAME: source.name.split(' ')[0], FEATUREDNAME: target.name, APPURL: process.env.APP_URL, _SI: authentication._si }, { name: process.env.APP_NAME, email: process.env.NOREPLY_EMAIL });
+            await Email.getInstance().sendTemplateEmail(EmailTemplate.Reminder, [{ email: source.email , name: source.name }], { FIRSTNAME: source.name.split(' ')[0], FEATUREDNAME: target.name, APPURL: process.env.APP_URL, _SI: authentication._si }, { name: process.env.APP_NAME, email: process.env.NOREPLY_EMAIL });
             // TODO: Add user to cache
           }
         });

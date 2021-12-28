@@ -4,7 +4,7 @@ import * as mongoose from 'mongoose';
 import { Controller, RequestWithUser } from '../interfaces/index';
 import { Score, ScoreModel, CreateScoreDto, UserModel, User } from '../models/index';
 import { BadParametersException, ServerProcessException, NotAuthorizedException, ObjectNotFoundException, HttpException } from '../utils/index';
-import { logger, sendinblue } from '../utils/index';
+import { logger } from '../utils/index';
 import { admin, authorize } from '../middleware/index';
 import { scoreService, userService } from '../services/index';
 

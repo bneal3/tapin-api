@@ -5,7 +5,6 @@
   "main": "src/server.ts",
   "scripts": {
     "clean": "rimraf dist/*",
-    "lint": "tslint -p tsconfig.json -c tslint.json",
     "tsc": "tsc",
     "postinstall": "npm run tsc",
     "build": "npm-run-all clean tsc",
@@ -14,8 +13,8 @@
     "heroku-postbuild": "npm-run-all copypublic",
     "dev:start": "npm-run-all build start",
     "dev": "nodemon --watch src -e ts --exec npm run dev:start",
-    "start": "npm run serve",
     "serve": "node dist/server.js",
+    "start": "npm run serve",
     "seed": "ts-node src/tests/seed/seed.ts NODE_ENV=test",
     "pretest": "cross-env NODE_ENV=test npm run clean",
     "test": "cross-env NODE_ENV=test jest --runInBand --testTimeout=10000",
@@ -77,9 +76,6 @@
     "supertest": "^4.0.2",
     "ts-jest": "^25.2.1",
     "ts-node": "^7.0.1",
-    "tsc": "^2.0.3",
-    "tslint": "^5.11.0",
-    "tslint-config-airbnb": "^5.11.1",
     "typescript": "^3.9.10"
   },
   "engines": {
