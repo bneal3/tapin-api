@@ -5,6 +5,7 @@
   "main": "src/server.ts",
   "scripts": {
     "clean": "rimraf dist/*",
+    "tsc": "tsc",
     "postinstall": "npm run tsc",
     "build": "npm-run-all clean tsc",
     "copypublic": "copyfiles --flat src/public/**/* dist/public",
@@ -75,7 +76,6 @@
     "supertest": "^4.0.2",
     "ts-jest": "^25.2.1",
     "ts-node": "^7.0.1",
-    "tsc": "^2.0.3",
     "typescript": "^3.9.10"
   },
   "engines": {
