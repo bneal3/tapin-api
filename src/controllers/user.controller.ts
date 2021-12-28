@@ -2,7 +2,6 @@ import * as bcrypt from 'bcryptjs';
 import * as express from 'express';
 import * as mongoose from 'mongoose';
 import * as path from 'path';
-const http = require('request').defaults({ encoding: null });
 
 import { BadParametersException, NotAuthorizedException, ObjectAlreadyExistsException, ObjectNotFoundException } from '../utils/index';
 import { AccessType, Controller, RequestWithUser } from '../interfaces/index';
