@@ -2,7 +2,6 @@ import * as bcrypt from 'bcryptjs';
 import * as mongoose from 'mongoose';
 import * as jwt from 'jsonwebtoken';
 import * as path from 'path';
-const request = require('request').defaults({ encoding: null });
 
 import { HttpException, NotAuthorizedException, ObjectAlreadyExistsException, ObjectNotFoundException, ServerProcessException, BadParametersException  } from '../utils/index';
 import { AuthenticationModel, Authentication, UserModel, User, EditUserDto, UserDto } from '../models/index';
