@@ -12,7 +12,7 @@ export interface Authentication {
   dateIssued: Date;
 }
 
-export class LoginDto {
+export class SignInDto {
   @IsString()
   public googleAuthCode: string;
 }

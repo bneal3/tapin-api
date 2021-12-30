@@ -7,11 +7,12 @@ import Bull from './bull';
 import Logger from './logger';
 
 export enum EmailTemplate {
-  Invitation,
+  Invitation = 1,
   Accepted,
+  Rejected,
+  Canceled,
   PostEvent,
-  Reminder,
-  EmailVerification
+  Reminder
 }
 
 class Email {
