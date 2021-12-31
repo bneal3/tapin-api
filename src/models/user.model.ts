@@ -15,6 +15,11 @@ export interface User {
 
 export class EditUserDto {
   @IsOptional()
+  public name: string;
+}
+
+export class EditContactDto {
+  @IsOptional()
   public email: string;
 
   @IsOptional()
@@ -57,9 +62,6 @@ const UserSchema = new mongoose.Schema({
   email: {
     type: String,
     trim: true,
-    index: true,
-    unique: true,
-    sparse: true,
     required: true
   },
   name: {

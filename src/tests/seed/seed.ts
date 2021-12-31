@@ -1,18 +1,16 @@
 import * as mongoose from 'mongoose';
-import * as shortid from 'shortid';
-import * as bcrypt from 'bcryptjs';
 import * as yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 
 const argv = yargs(hideBin(process.argv)).argv;
 
-import { AuthenticationModel, LogModel, MeetingModel, ScoreModel, Score, UserModel, User } from '../../models/index';
-import { authenticationService, meetingService, scoreService, userService } from "../../services/index";
+import { AuthenticationModel, LogModel, MeetingModel, RelationshipModel, Relationship, UserModel, User } from '../../models/index';
+import { authenticationService, meetingService, relationshipService, userService } from "../../services/index";
 import { connectToDatabase, redis } from '../../utils/index';
 
 import { data, resetDatabase, seedFullUser, seedShellUser } from './index';
 
-// TODO: 3 users, 2 full, 1 shell; 3 meetings (2 between full, 1 between full and shell); 2 scores
+// TODO: 3 users, 2 full, 1 shell; 3 meetings (2 between full, 1 between full and shell); 2 relationships
 (async () => {
   // FLOW: Reset database
   await resetDatabase();
@@ -21,5 +19,5 @@ import { data, resetDatabase, seedFullUser, seedShellUser } from './index';
 
   // FLOW: Create meetings
 
-  // FLOW: Create scores
+  // FLOW: Create relationships
 });

@@ -1,9 +1,9 @@
 import AuthenticationController from './authentication.controller';
 import MeetingController from './meeting.controller';
 import LogController from './log.controller';
-import ScoreController from './score.controller';
+import RelationshipController from './relationship.controller';
 import UserController from './user.controller';
 
 export {
-  AuthenticationController, MeetingController, LogController, ScoreController, UserController
+  AuthenticationController, MeetingController, LogController, RelationshipController, UserController
 }

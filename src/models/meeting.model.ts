@@ -17,6 +17,7 @@ export interface Meeting {
   recipient: mongoose.Schema.Types.ObjectId | User;
   title: string;
   status: MeetingStatus;
+  confirmed: string[];
   dateCreated: Date;
   dateStart: Date;
   dateEnd: Date;
@@ -24,14 +25,8 @@ export interface Meeting {
 }
 
 export class CreateMeetingDto {
-  @IsOptional()
+  @IsString()
   public recipientId: string;
-
-  @IsOptional()
-  public email: string;
-
-  @IsOptional()
-  public name: string;
 
   @IsOptional()
   public recipient: (User & mongoose.Document);
@@ -54,10 +49,16 @@ export class CreateMeetingDto {
 
 export class EditMeetingDto {
   @IsString()
+  public userId: string;
+
+  @IsString()
   public title: string;
 
   @IsOptional()
   public status: number;
+
+  @IsOptional()
+  public confirmed: boolean;
 
   @IsOptional()
   public timeStart: string;
@@ -70,9 +71,6 @@ export class EditMeetingDto {
 
   @IsOptional()
   public dateEnd: Date;
-
-  @IsOptional()
-  public dayStatusLastUpdated: string;
 
   @IsOptional()
   public dateStatusLastUpdated: Date;
@@ -101,6 +99,10 @@ const MeetingSchema = new mongoose.Schema({
   status: {
     type: Number,
     default: MeetingStatus.Pending
+  },
+  confirmed: {
+    type: [String],
+    default: []
   },
   dateCreated: {
     type: Date,

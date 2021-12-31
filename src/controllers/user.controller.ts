@@ -6,7 +6,7 @@ import * as path from 'path';
 import { BadParametersException, NotAuthorizedException, ObjectAlreadyExistsException, ObjectNotFoundException } from '../utils/index';
 import { AccessType, Controller, RequestWithUser } from '../interfaces/index';
 import { authorize, admin, validation } from '../middleware/index';
-import { UserModel, User, EditUserDto, UserDto } from '../models/index';
+import { UserModel, User, EditUserDto, EditContactDto, UserDto } from '../models/index';
 import { logger } from '../utils/index';
 import { authenticationService, userService } from '../services/index';
 
@@ -23,6 +23,7 @@ class UserController implements Controller {
     this.router.get(`${this.path}`, this.get);
     this.router.get(`${this.path}/me`, authorize, this.getMe);
     this.router.patch(`${this.path}/me`, authorize, validation(EditUserDto), this.patchMe);
+    this.router.patch(`${this.path}/contact/:id`, authorize, validation(EditContactDto), this.patchContact);
   }
 
   private get = async (request: express.Request, response: express.Response, next: express.NextFunction) => {
@@ -52,6 +53,20 @@ class UserController implements Controller {
     } catch (err) {
       console.log(err);
       next(err);
+    }
+  }
+
+  private patchContact = async (request: RequestWithUser, response: express.Response, next: express.NextFunction) => {
+    let editContactData: EditContactDto = request.body;
+    if(mongoose.Types.ObjectId.isValid(request.params.id)) {
+      try {
+        const contact = await userService.editContact(request.user, request.params.id, editContactData);
+        response.send(contact);
+      } catch (err) {
+        next(err);
+      }
+    } else {
+      next(new BadParametersException());
     }
   }
 }
