@@ -13,23 +13,6 @@ export interface User {
   dateRegistered?: Date;
 }
 
-export class RegisterUserDto {
-  @IsString()
-  public googleAuthCode: string;
-
-  @IsOptional()
-  public googleId: string;
-
-  @IsOptional()
-  public googleRefreshToken: string;
-
-  @IsOptional()
-  public email: string;
-
-  @IsOptional()
-  public name: string;
-}
-
 export class EditUserDto {
   @IsOptional()
   public email: string;

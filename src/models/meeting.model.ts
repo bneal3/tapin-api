@@ -6,6 +6,7 @@ import { User } from './user.model';
 export enum MeetingStatus {
   Pending,
   Accepted,
+  Rejected,
   Happened,
   Canceled
 }
