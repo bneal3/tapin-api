@@ -42,8 +42,8 @@ class Cron {
     const relationships = await RelationshipModel.find({});
     relationships.forEach(async (relationship: (Relationship & mongoose.Document)) => {
       // FLOW: Get meetings for ShipRank calculation
-      const firstId = new mongoose.Schema.Types.ObjectId(relationship.userIds[0]);
-      const secondId = new mongoose.Schema.Types.ObjectId(relationship.userIds[1]);
+      const firstId: any = new mongoose.Types.ObjectId(relationship.userIds[0]);
+      const secondId: any = new mongoose.Types.ObjectId(relationship.userIds[1]);
       const meetings = await MeetingModel.find({
         $or: [{
           initiator: firstId,
@@ -87,8 +87,8 @@ class Cron {
       let featuredIndex = -1;
       relationshipObject.relationships.forEach(async (relationship: (Relationship & mongoose.Document), index: number) => {
         // FLOW: Select one person from batch of relationships as flagship for email
-        const firstId = new mongoose.Schema.Types.ObjectId(relationship.userIds[0]);
-        const secondId = new mongoose.Schema.Types.ObjectId(relationship.userIds[1]);
+        const firstId: any = new mongoose.Types.ObjectId(relationship.userIds[0]);
+        const secondId: any = new mongoose.Types.ObjectId(relationship.userIds[1]);
         const meetings = await MeetingModel.find({
           $or: [{
             initiator: firstId,
