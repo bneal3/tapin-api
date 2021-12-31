@@ -19,23 +19,9 @@ class AuthenticationController implements Controller {
   }
 
   private initializeRoutes() {
-    this.router.get(`${this.path}`, this.getAuthentication);
     this.router.post(`${this.path}/signin`, validation(SignInDto), this.postSignIn);
   }
-
-  private getAuthentication = async (request: express.Request, response: express.Response, next: express.NextFunction) => {
-    try {
-      if(request.query._si) {
-        const authentication = await authenticationService.get(<string>request.query._si);
-        response.send(authentication);
-      } else {
-        throw new BadParametersException();
-      }
-    } catch (err) {
-      next(err);
-    }
-  }
-
+  
   private postSignIn = async (request: express.Request, response: express.Response, next: express.NextFunction) => {
     const userData: SignInDto = request.body;
     try {

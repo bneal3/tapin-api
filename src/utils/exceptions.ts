@@ -52,6 +52,12 @@ class ObjectAlreadyExistsException extends HttpException {
   }
 }
 
+class ServiceDependencyException extends HttpException {
+  constructor() {
+    super(511, `Additional service authentication required`);
+  }
+}
+
 export {
-    HttpException, ServerProcessException, BadParametersException, UnrecognizedCredentialsException, NotAuthorizedException, ObjectNotFoundException, ObjectAlreadyExistsException
+    HttpException, ServerProcessException, BadParametersException, UnrecognizedCredentialsException, NotAuthorizedException, ObjectNotFoundException, ObjectAlreadyExistsException, ServiceDependencyException
 }

@@ -1,13 +1,13 @@
 import AuthenticationService from './authentication.service';
 import MeetingService from './meeting.service';
-import ScoreService from './score.service';
+import RelationshipService from './relationship.service';
 import UserService from './user.service';
 
 const authenticationService = AuthenticationService.getInstance();
 const meetingService = MeetingService.getInstance();
-const scoreService = ScoreService.getInstance();
+const relationshipService = RelationshipService.getInstance();
 const userService = UserService.getInstance();
 
 export {
-    authenticationService, meetingService, scoreService, userService
+    authenticationService, meetingService, relationshipService, userService
 }

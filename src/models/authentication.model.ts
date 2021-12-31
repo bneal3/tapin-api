@@ -1,12 +1,10 @@
 import * as mongoose from 'mongoose';
-import * as shortid from 'shortid';
 import { IsOptional, IsString } from 'class-validator';
 
 import { User } from './user.model';
 
 export interface Authentication {
   user: mongoose.Types.ObjectId | User;
-  _si: string;
   token: string;
   expiration: number;
   dateIssued: Date;
@@ -22,10 +20,6 @@ const AuthenticationSchema = new mongoose.Schema({
     ref: 'User',
     type: mongoose.Schema.Types.ObjectId,
     required: true
-  },
-  _si: {
-    type: String,
-    default: shortid.generate
   },
   token: {
     type: String,

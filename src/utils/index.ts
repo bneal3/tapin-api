@@ -1,6 +1,6 @@
 import * as mongoose from 'mongoose';
 
-import { HttpException, ServerProcessException, NotAuthorizedException, UnrecognizedCredentialsException, BadParametersException, ObjectAlreadyExistsException, ObjectNotFoundException } from './exceptions';
+import { HttpException, ServerProcessException, NotAuthorizedException, UnrecognizedCredentialsException, BadParametersException, ObjectAlreadyExistsException, ObjectNotFoundException, ServiceDependencyException } from './exceptions';
 
 import Bull from './bull';
 import Calendar from './calendar';
@@ -30,5 +30,5 @@ async function connectToDatabase() {
 }
 
 export {
-    bull, calendar, cron, email, EmailTemplate, logger, redis, RedisPrefix, connectToDatabase, HttpException, ServerProcessException, NotAuthorizedException, UnrecognizedCredentialsException, BadParametersException, ObjectAlreadyExistsException, ObjectNotFoundException
+    bull, calendar, cron, email, EmailTemplate, logger, redis, RedisPrefix, connectToDatabase, HttpException, ServerProcessException, NotAuthorizedException, UnrecognizedCredentialsException, BadParametersException, ObjectAlreadyExistsException, ObjectNotFoundException, ServiceDependencyException
 }

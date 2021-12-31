@@ -1,6 +1,6 @@
 import App from './app';
 import Logger from './utils/logger';
-import { AuthenticationController, LogController, MeetingController, ScoreController, UserController } from './controllers/index';
+import { AuthenticationController, LogController, MeetingController, RelationshipController, UserController } from './controllers/index';
 
 // FLOW: Instantiate app
 const app = new App(
@@ -8,7 +8,7 @@ const app = new App(
     new AuthenticationController(),
     new LogController(),
     new MeetingController(),
-    new ScoreController(),
+    new RelationshipController(),
     new UserController()
   ]
 );

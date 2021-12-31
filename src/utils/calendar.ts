@@ -1,6 +1,7 @@
 import * as mongoose from 'mongoose';
 const { google } = require('googleapis');
 
+import { ServiceDependencyException } from './exceptions';
 import { Meeting, CreateMeetingDto, User, UserModel } from '../models/index';
 import Logger from './logger';
 
@@ -11,11 +12,15 @@ class Calendar {
 
   constructor() {}
 
-  // TODO: Cause special exception if refreshToken no longer works to signal to frontend to re-sign in
   public async createClient(refreshToken: string) {
-    const client = new this.api.auth.OAuth2(process.env.GOOGLE_AUTH_CLIENT_ID, process.env.GOOGLE_AUTH_CLIENT_SECRET, process.env.APP_URL);
-    client.setCredentials({ refresh_token: refreshToken });
-    return client;
+    try {
+      const client = new this.api.auth.OAuth2(process.env.GOOGLE_AUTH_CLIENT_ID, process.env.GOOGLE_AUTH_CLIENT_SECRET, process.env.APP_URL);
+      client.setCredentials({ refresh_token: refreshToken });
+      return client;
+    } catch (err) {
+      // FLOW: Cause special exception if refreshToken no longer works to signal to frontend to re-sign in
+      throw new ServiceDependencyException();
+    }
   }
 
   public async getEvent(client: any, eventId: string) {

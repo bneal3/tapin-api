@@ -6,33 +6,24 @@ const { OAuth2Client } = require('google-auth-library');
 
 import { HttpException, ServerProcessException, BadParametersException, NotAuthorizedException, UnrecognizedCredentialsException, ObjectAlreadyExistsException, ObjectNotFoundException } from '../utils/index';
 import { AccessType, AuthenticationTokenData } from '../interfaces/index';
-import { AuthenticationModel, Authentication, SignInDto, ScoreModel, Score, UserModel, User } from '../models/index';
+import { AuthenticationModel, Authentication, SignInDto, MeetingModel, Meeting, RelationshipModel, Relationship, UserModel, User } from '../models/index';
 import { logger } from '../utils/index';
 import { userService } from '../services/index';
 
 class AuthenticationService {
   private static instance: AuthenticationService;
   private authentication = AuthenticationModel;
-  private score = ScoreModel;
+  private meeting = MeetingModel;
+  private relationship = RelationshipModel;
   private user = UserModel;
 
-  public get = async (_si: string) => {
-    const authentication = await this.authentication.findOne({ _si: _si });
-    if(authentication) {
-      // FLOW: Get latest active authentication
-      const latest = await this.authentication.findOne({ user: authentication.user }).sort('-dateIssued');
-      return latest;
-    } else {
-      throw new ObjectNotFoundException('authentication');
-    }
-  }
-
   public signIn = async (signInData: SignInDto) => {
+    // FLOW: Create Google OAuth Client and verify auth code
     const client = new OAuth2Client(process.env.GOOGLE_AUTH_CLIENT_ID, process.env.GOOGLE_AUTH_CLIENT_SECRET, process.env.APP_URL);
     const payload = await this.verifyGoogleAuthCode(client, signInData.googleAuthCode);
-    let user: (User & mongoose.Document) = await this.user.findOne({ email: payload.userInfo['email'] });
-    if(user && user.googleId) {
-      return await this.findOneAndLogin({ googleId: user.googleId });
+    let contacts: (User & mongoose.Document)[] = await this.user.find({ email: payload.userInfo['email'] }).sort('dateCreated');
+    if(contacts.length > 0 && contacts[0].dateRegistered) {
+      return await this.findOneAndLogin({ _id: contacts[0]._id });
     } else {
       const userData: any = {
         googleId: payload.userInfo['sub'],
@@ -41,38 +32,37 @@ class AuthenticationService {
         name: payload.userInfo['name']
       };
       try {
-        if(!user) {
-          user = await this.user.create({
-            ...userData,
-            dateRegistered: Date.now()
-          });
-        } else {
-          user = await this.user.findByIdAndUpdate(user._id, {
-            googleId: userData.googleId,
-            googleRefreshToken: userData.googleRefreshToken,
-            name: userData.name,
-            dateRegistered: new Date()
-          }, { new: true });
-          // FLOW: Add scores to user if email already exists in database
-          const scores = await this.score.find({ target: user._id });
-          const promises: any[] = [];
-          scores.forEach((score) => {
-            const relation = this.score.create({
-              source: user._id,
-              target: score.source,
-              value: score.value
+        const user = await this.user.create({
+          ...userData,
+          dateRegistered: Date.now()
+        });
+        if(contacts.length > 0) {
+          // FLOW: Consolidate all contacts and delete them then point any relationships and meetings towards new user
+          const updatedRelationships: any[] = [];
+          const updatedMeetings: any[] = [];
+          const deletedContacts: any[] = [];
+          contacts.forEach(async (contact) => {
+            const relationships = await this.relationship.find({ userIds: contact._id.toString() });
+            relationships.forEach((relationship) => {
+              const updatedRelationship = this.relationship.findByIdAndUpdate(relationship._id, {
+                $pull: { userIds: contact._id.toString() },
+                $push: { userIds: user._id.toString() }
+              }, { new: true})
+              updatedRelationships.push(updatedRelationship);
             });
-            promises.push(relation);
+            const meetings = await this.meeting.find({ recipient: contact._id });
+            meetings.forEach((meeting) => {
+              const updatedMeeting = this.meeting.findByIdAndUpdate(meeting._id, { recipient: user._id }, { new: true });
+              updatedMeetings.push(updatedMeeting);
+            });
+            const deletedContact = this.user.findByIdAndDelete(contact._id);
+            deletedContacts.push(deletedContact);
           });
-          await Promise.all(promises);
+          await Promise.all([updatedRelationships, updatedMeetings, deletedContacts]).then(() => {});
         }
         return await this.sanitizeTokenResponse(user);
       } catch (err) {
-        if(err.message.indexOf('email') > -1) {
-          throw new ObjectAlreadyExistsException('User', 'email');
-        } else {
-          throw new HttpException(400, err.message);
-        }
+        throw new HttpException(400, err.message);
       }
     }
   }
@@ -124,7 +114,6 @@ class AuthenticationService {
     } else {
       authentication = undefined;
     }
-
     // FLOW: If not, create one
     if(!authentication) {
       const authenticationTokenData: AuthenticationTokenData = {
@@ -137,7 +126,6 @@ class AuthenticationService {
         expiration: 1000 * 60 * 60 * expiration
       });
     }
-
     // FLOW: Return authentication
     return authentication;
   }

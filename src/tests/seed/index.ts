@@ -1,9 +1,7 @@
 import * as mongoose from 'mongoose';
-import * as shortid from 'shortid';
-import * as bcrypt from 'bcryptjs';
 
-import { AuthenticationModel, LogModel, MeetingModel, ScoreModel, Score, UserModel, User } from '../../models/index';
-import { authenticationService, meetingService, scoreService, userService } from "../../services/index";
+import { AuthenticationModel, LogModel, MeetingModel, RelationshipModel, Relationship, UserModel, User } from '../../models/index';
+import { authenticationService, meetingService, relationshipService, userService } from "../../services/index";
 import { connectToDatabase, redis } from '../../utils/index';
 
 const full: User = {
@@ -44,9 +42,9 @@ async function resetDatabase() {
     const removeAuthentications = AuthenticationModel.remove({});
     const removeLogs = LogModel.remove({});
     const removeMeetings = MeetingModel.remove({});
-    const removeScores = ScoreModel.remove({});
+    const removeRelationships = RelationshipModel.remove({});
     const removeUsers = UserModel.remove({});
-    await Promise.all([removeAuthentications, removeLogs, removeMeetings, removeScores, removeUsers]);
+    await Promise.all([removeAuthentications, removeLogs, removeMeetings, removeRelationships, removeUsers]);
 
     // FLOW: Flush redis
     await new Promise((resolve, reject) => {

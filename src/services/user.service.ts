@@ -3,14 +3,15 @@ import * as mongoose from 'mongoose';
 import * as jwt from 'jsonwebtoken';
 import * as path from 'path';
 
-import { HttpException, NotAuthorizedException, ObjectAlreadyExistsException, ObjectNotFoundException, ServerProcessException, BadParametersException  } from '../utils/index';
-import { AuthenticationModel, Authentication, UserModel, User, EditUserDto, UserDto } from '../models/index';
+import { HttpException, NotAuthorizedException, ObjectAlreadyExistsException, ObjectNotFoundException, ServerProcessException, BadParametersException, UnrecognizedCredentialsException } from '../utils/index';
+import { AuthenticationModel, Authentication, RelationshipModel, UserModel, User, EditUserDto, EditContactDto, UserDto } from '../models/index';
 import { logger } from '../utils/index';
 import { authenticationService } from '../services/index';
 
 class UserService {
   private static instance: UserService;
   private authentication = AuthenticationModel;
+  private relationship = RelationshipModel;
   private user = UserModel;
 
   public getUsers = async (query: any) => {
@@ -42,8 +43,6 @@ class UserService {
   }
 
   public editMe = async (user: (User & mongoose.Document), editUserData: EditUserDto) => {
-    if(editUserData.email) { editUserData.email = this.sanitizeEmail(editUserData.email); }
-    // TODO: Add scores to user if email already exists in database
     try {
       user = await this.user.findByIdAndUpdate(user._id, editUserData, { new: true });
     } catch (err) {
@@ -54,6 +53,25 @@ class UserService {
       }
     }
     return user;
+  }
+
+  public editContact = async (user: (User & mongoose.Document), _id: string, editContactData: EditContactDto) => {
+    const contact = await this.user.findById(_id);
+    if(contact) {
+      const relationship = await this.relationship.findOne({ userIds: { $in: [user._id.toString(), contact._id.toString()] } });
+      if(relationship) {
+        try {
+          user = await this.user.findByIdAndUpdate(user._id, editContactData, { new: true });
+          return user;
+        } catch (err) {
+          throw new HttpException(400, err.message);
+        }
+      } else {
+        throw new UnrecognizedCredentialsException();
+      }
+    } else {
+      throw new BadParametersException();
+    }
   }
 
   public sanitizeEmail(email: string) {

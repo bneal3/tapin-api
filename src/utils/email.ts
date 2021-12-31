@@ -2,7 +2,7 @@ import { Job } from 'bull';
 import * as mongoose from 'mongoose';
 const SendinBlueAPI = require('sib-api-v3-sdk');
 
-import { Meeting, MeetingModel, MeetingStatus, User, UserModel } from '../models/index';
+import { Meeting, MeetingModel, MeetingStatus, Relationship, RelationshipModel, User, UserModel } from '../models/index';
 import Bull from './bull';
 import Logger from './logger';
 
@@ -10,8 +10,8 @@ export enum EmailTemplate {
   Invitation = 1,
   Accepted,
   Rejected,
-  Canceled,
   PostEvent,
+  Canceled,
   Reminder
 }
 
@@ -92,6 +92,52 @@ class Email {
       }
     }
     return false;
+  }
+
+  public coreFormat() {
+    // TODO: Refactor standard email fields
+  }
+
+  public formatNames(name: string) {
+    const names = name.split(' ');
+    const first = names[0];
+    let last = '';
+    if(names.length > 1) { last = names[1]; }
+    return {
+      first: first,
+      last: last
+    }
+  }
+
+  public formatScore(relationships: (Relationship & mongoose.Document)[], relationshipId: mongoose.Types.ObjectId) {
+    relationships = relationships.sort((a: (Relationship & mongoose.Document), b: (Relationship & mongoose.Document)) => { return a.score - b.score; }); // ascending
+    let index = -1;
+    for(let i = 0; i < relationships.length; i++) {
+      if(relationships[i]._id === relationshipId) {
+        index = i;
+        break;
+      }
+    }
+    let percentage = 10;
+    let position = 'bottom';
+    if(index >= 0) {
+      let rawPercentage = (index + 1) / relationships.length;
+      if(rawPercentage >= .5) {
+        percentage = 100 - (Math.floor(rawPercentage * 10) * 10);
+        position = 'top';
+      } else {
+        percentage = Math.ceil(rawPercentage * 10) * 10;
+      }
+    }
+    return {
+      percentage: percentage,
+      position: position
+    }
+  }
+
+  public formatDate(date: Date) {
+    const dateString = date.toString();
+    // TODO: Fill this out to Day, Date, Time
   }
 
   public static getInstance(): Email {
