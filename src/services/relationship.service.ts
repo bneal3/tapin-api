@@ -30,17 +30,20 @@ class RelationshipService {
         { _id: { $in: ids }},
         { userIds: { $in: userIds }}
       ]
-    }).sort(['score', -1]).catch((err: Error) => { return undefined; });
+    }).sort({ score: -1 }).catch((err: Error) => { return undefined; });
+    console.log(relationships);
     if(relationships && relationships.length > 0) {
       const relationshipObjects: any[] = [];
-      relationships.forEach(async (relationship: (Relationship & mongoose.Document)) => {
-        const contact = await this.user.findById(relationship.userIds.filter((userId: string) => { return userId !== user._id.toString(); })[0]);
+      for(let i = 0; i < relationships.length; i++) {
+        const contact = await this.user.findById(relationships[i].userIds.filter((userId: string) => { return userId !== user._id.toString(); })[0]);
         const relationshipObject: any = {
-          ...relationship,
+          ...relationships[i].toObject(),
           contact: contact
         };
+        console.log(relationshipObject);
         relationshipObjects.push(relationshipObject);
-      });
+      }
+      console.log(relationshipObjects);
       return relationshipObjects;
     } else {
       throw new ObjectNotFoundException('identifier(s)');
