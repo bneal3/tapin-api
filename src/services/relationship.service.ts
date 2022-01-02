@@ -80,7 +80,7 @@ class RelationshipService {
         ...relationship.toObject(),
         contact: contact
       }
-      return relationship;
+      return relationshipObject;
     } else {
       throw new ObjectAlreadyExistsException('Relationship', 'user');
     }
