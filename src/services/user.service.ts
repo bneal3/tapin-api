@@ -56,12 +56,12 @@ class UserService {
   }
 
   public editContact = async (user: (User & mongoose.Document), _id: string, editContactData: EditContactDto) => {
-    const contact = await this.user.findById(_id);
+    let contact = await this.user.findById(_id);
     if(contact) {
       const relationship = await this.relationship.findOne({ userIds: { $in: [user._id.toString(), contact._id.toString()] } });
       if(relationship) {
         try {
-          user = await this.user.findByIdAndUpdate(user._id, editContactData, { new: true });
+          contact = await this.user.findByIdAndUpdate(contact._id, editContactData, { new: true });
           return user;
         } catch (err) {
           throw new HttpException(400, err.message);
