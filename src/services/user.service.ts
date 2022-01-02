@@ -62,7 +62,7 @@ class UserService {
       if(relationship) {
         try {
           contact = await this.user.findByIdAndUpdate(contact._id, editContactData, { new: true });
-          return user;
+          return contact;
         } catch (err) {
           throw new HttpException(400, err.message);
         }

@@ -14,8 +14,7 @@ class Cron {
 
   private reminderEmailCacheOptions = {
     defaultJobOptions: {
-      backoff: { type: 'fixed', delay: 10000 },
-      attempts: 6,
+      backoff: { type: 'fixed', delay: Number(process.env.REMINDER_EMAIL_CACHE_LENGTH) },
       removeOnComplete: true
     },
     createClient: Bull.getInstance().createClient
@@ -72,7 +71,6 @@ class Cron {
     });
   }
 
-  // TODO: Cache who was in featured email by queueing who was featured in bull and then having the entry dissipate after x weeks
   public async relationshipReminderJob() {
     const users = await UserModel.find({});
     const relationshipObjects: any[] = [];
@@ -99,10 +97,12 @@ class Cron {
           }],
           status: MeetingStatus.Happened
         }).sort(['dateStart', -1]);
+        // FLOW: Check if current user is in cache
+        const queue = Bull.getInstance().get(`reminderEmailCache`, Cron.getInstance().reminderEmailCacheOptions, () => {});
+        const jobId = `${relationshipObject.user._id.toString()}:${relationship.userIds.filter((userId: string) => { return userId !== relationshipObject.user._id.toString(); })[0]}`;
+        const job = await queue.getJob(jobId);
         // FLOW: Check if time between now and last meeting is greater than minimum follow up reminder time (1 month)
-        // TODO: Check if current user is in cache, if so set featuredIndex = -1
-        if((new Date()).getTime() - meetings[0].dateEnd.getTime() >= Number(process.env.MINIMUM_REMINDER_TIME) * 30
-            ) { featuredIndex = index; }
+        if((new Date()).getTime() - meetings[0].dateEnd.getTime() >= Number(process.env.MINIMUM_REMINDER_TIME) * 30 && !job) { featuredIndex = index; }
       });
       if(featuredIndex >= 0) {
         // FLOW: Get featuredUser
@@ -117,9 +117,16 @@ class Cron {
         const featuredFirstName = featuredNames[0];
         let featuredLastName = '';
         if(featuredNames.length > 1) { featuredLastName = featuredNames[1]; }
-        await Email.getInstance().sendTemplateEmail(EmailTemplate.Reminder, [{ email: relationshipObject.user.email , name: relationshipObject.user.name }], { FIRSTNAME: userFirstName, LASTNAME: userLastName, FRIENDFIRST: featuredFirstName, FRIENDLAST: featuredLastName, APPURL: process.env.APP_URL }, { name: process.env.APP_NAME, email: process.env.NOREPLY_EMAIL });
-        // TODO: Add user to cache
-        Bull.getInstance().get(`reminderEmailCache`, Cron.getInstance().reminderEmailCacheOptions, () => {}).add({});
+        await Email.getInstance().sendTemplateEmail(EmailTemplate.Reminder, [{ email: relationshipObject.user.email , name: relationshipObject.user.name }], {
+          FIRSTNAME: userFirstName,
+          LASTNAME: userLastName,
+          FRIENDFIRST: featuredFirstName,
+          FRIENDLAST: featuredLastName,
+          APPURL: process.env.APP_URL
+        }, { name: process.env.APP_NAME, email: process.env.NOREPLY_EMAIL });
+        // FLOW: Add user to cache
+        const jobId = `${relationshipObject.user._id.toString()}:${relationshipObject.relationships[featuredIndex].userIds.filter((userId: string) => { return userId !== relationshipObject.user._id.toString(); })[0]}`;
+        Bull.getInstance().get(`reminderEmailCache`, Cron.getInstance().reminderEmailCacheOptions, () => {}).add({}, { jobId: jobId });
       }
     });
   }

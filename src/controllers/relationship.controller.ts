@@ -20,7 +20,7 @@ class RelationshipController implements Controller {
   private initializeRoutes() {
     this.router.get(`${this.path}`, authorize, this.get);
     this.router.post(`${this.path}`, authorize, validation(CreateRelationshipDto), this.post);
-    this.router.post(`${this.path}/:id`, authorize, this.delete);
+    this.router.delete(`${this.path}/:id`, authorize, this.delete);
   }
 
   private get = async (request: RequestWithUser, response: express.Response, next: express.NextFunction) => {
