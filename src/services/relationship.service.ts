@@ -2,12 +2,13 @@ import * as mongoose from 'mongoose';
 
 import { HttpException, NotAuthorizedException, ObjectAlreadyExistsException, ObjectNotFoundException, ServerProcessException, BadParametersException  } from '../utils/index';
 import { AccessType } from '../interfaces/index';
-import { RelationshipModel, Relationship, CreateRelationshipDto, UserModel, User } from '../models/index';
-import { logger } from '../utils/index';
+import { MeetingModel, Meeting, MeetingStatus, RelationshipModel, Relationship, CreateRelationshipDto, UserModel, User } from '../models/index';
+import { calendar, logger } from '../utils/index';
 import { authenticationService, userService } from '../services/index';
 
 class RelationshipService {
   private static instance: RelationshipService;
+  private meeting = MeetingModel;
   private relationship = RelationshipModel;
   private user = UserModel;
 
@@ -31,7 +32,6 @@ class RelationshipService {
         { userIds: { $in: userIds }}
       ]
     }).sort({ score: -1 }).catch((err: Error) => { return undefined; });
-    console.log(relationships);
     if(relationships && relationships.length > 0) {
       const relationshipObjects: any[] = [];
       for(let i = 0; i < relationships.length; i++) {
@@ -40,10 +40,8 @@ class RelationshipService {
           ...relationships[i].toObject(),
           contact: contact
         };
-        console.log(relationshipObject);
         relationshipObjects.push(relationshipObject);
       }
-      console.log(relationshipObjects);
       return relationshipObjects;
     } else {
       throw new ObjectNotFoundException('identifier(s)');
@@ -78,9 +76,44 @@ class RelationshipService {
     let relationship = await this.relationship.findOne({ userIds: [user._id.toString(), contact._id.toString()] });
     if(!relationship) {
       relationship = await this.relationship.create({ userIds: [user._id.toString(), contact._id.toString()] });
+      const relationshipObject: any = {
+        ...relationship.toObject(),
+        contact: contact
+      }
       return relationship;
     } else {
       throw new ObjectAlreadyExistsException('Relationship', 'user');
+    }
+  }
+
+  public deleteRelationship = async (user: (User & mongoose.Document), _id: string) => {
+    const relationship = await this.relationship.findById(_id);
+    if(relationship && relationship.userIds.includes(user._id.toString())) {
+      // FLOW: Check to see if there are any pending meetings
+      const firstId: any = new mongoose.Types.ObjectId(relationship.userIds[0]);
+      const secondId: any = new mongoose.Types.ObjectId(relationship.userIds[1]);
+      const meetings = await MeetingModel.find({
+        $or: [{
+          initiator: firstId,
+          recipient: secondId
+        }, {
+          initiator: secondId,
+          recipient: firstId
+        }],
+        status: { $in: [MeetingStatus.Pending, MeetingStatus.Accepted] },
+        dateStart: { $gt: new Date() }
+      });
+      if(meetings.length > 0) {
+        for(let i = 0; i < meetings.length; i++) {
+          // FLOW: Delete gcal event
+          const client = await calendar.createClient(user.googleRefreshToken);
+          await calendar.cancelEvent(client, meetings[i].googleEventId);
+        }
+      }
+      // FLOW: Delete object
+      return this.relationship.findByIdAndDelete(relationship._id);
+    } else {
+      throw new BadParametersException();
     }
   }
 

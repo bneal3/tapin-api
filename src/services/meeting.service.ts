@@ -21,16 +21,20 @@ class MeetingService {
         return id;
       }
     });
-    initiators = query.initiators.filter((initiator: string) => {
-      if(mongoose.Types.ObjectId.isValid(initiator)) {
-        return new mongoose.Types.ObjectId(initiator);
-      }
-    });
-    recipients = query.recipients.filter((recipient: string) => {
-      if(mongoose.Types.ObjectId.isValid(recipient)) {
-        return new mongoose.Types.ObjectId(recipient);
-      }
-    });
+    if(query.initiators) {
+      initiators = query.initiators.filter((initiator: string) => {
+        if(mongoose.Types.ObjectId.isValid(initiator)) {
+          return new mongoose.Types.ObjectId(initiator);
+        }
+      });
+    }
+    if(query.recipients) {
+      recipients = query.recipients.filter((recipient: string) => {
+        if(mongoose.Types.ObjectId.isValid(recipient)) {
+          return new mongoose.Types.ObjectId(recipient);
+        }
+      });
+    }
     // FLOW: Get users
     const meetings = await this.meeting.find({
       $or: [
@@ -226,7 +230,7 @@ class MeetingService {
 
   public deleteMeeting = async (user: (User & mongoose.Document), _id: string) => {
     const meeting = await this.meeting.findById(_id);
-    if(meeting) {
+    if(meeting && meeting.initiator === user._id) {
       await meeting.populate('initiator').execPopulate();
       await meeting.populate('recipient').execPopulate();
       // FLOW: Delete gcal event

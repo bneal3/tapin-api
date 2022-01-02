@@ -20,6 +20,7 @@ class RelationshipController implements Controller {
   private initializeRoutes() {
     this.router.get(`${this.path}`, authorize, this.get);
     this.router.post(`${this.path}`, authorize, validation(CreateRelationshipDto), this.post);
+    this.router.post(`${this.path}/:id`, authorize, this.delete);
   }
 
   private get = async (request: RequestWithUser, response: express.Response, next: express.NextFunction) => {
@@ -36,6 +37,19 @@ class RelationshipController implements Controller {
     if((createRelationshipData.contactId && mongoose.Types.ObjectId.isValid(createRelationshipData.contactId)) || (createRelationshipData.email && createRelationshipData.name)) {
       try {
         const relationship = await relationshipService.createRelationship(request.user, createRelationshipData);
+        response.send(relationship);
+      } catch (err) {
+        next(err);
+      }
+    } else {
+      next(new BadParametersException());
+    }
+  }
+
+  private delete = async (request: RequestWithUser, response: express.Response, next: express.NextFunction) => {
+    if(mongoose.Types.ObjectId.isValid(request.params.id)) {
+      try {
+        const relationship = await relationshipService.deleteRelationship(request.user, request.params.id);
         response.send(relationship);
       } catch (err) {
         next(err);
