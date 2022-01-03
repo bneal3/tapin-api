@@ -76,12 +76,13 @@ class Calendar {
   public async updateEvent(client: any, eventId: string, updateData: any) {
     const calendar = google.calendar({ version: 'v3', auth: client });
     return await new Promise((resolve, reject) => {
-      calendar.events.udpate({
+      calendar.events.patch({
+        auth: client,
         calendarId: 'primary',
         eventId: eventId,
         sendUpdates: 'none',
         resource: updateData
-      }, (err: any, res: any) => {
+      }, (err: any, event: any) => {
         if(err) {
           console.log(err);
           reject(err);
@@ -101,12 +102,12 @@ class Calendar {
         calendarId: 'primary',
         eventId: eventId,
         sendUpdates: 'none',
-      }, (err: any, res: any) => {
+      }, (err: any, event: any) => {
         if(err) {
           console.log(err);
-          reject();
+          reject(err);
         } else{
-          resolve();
+          resolve(event);
         }
       });
     });

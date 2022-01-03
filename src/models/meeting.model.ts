@@ -51,7 +51,7 @@ export class EditMeetingDto {
   @IsString()
   public userId: string;
 
-  @IsString()
+  @IsOptional()
   public title: string;
 
   @IsOptional()

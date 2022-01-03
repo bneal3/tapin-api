@@ -108,7 +108,7 @@ class MeetingService {
         } else {
           if(editMeetingData.title) { delete editMeetingData.title; }
         }
-        if(editMeetingData.confirmed) {
+        if(editMeetingData.confirmed && (meeting.status === MeetingStatus.Pending || meeting.status === MeetingStatus.Accepted)) {
           if(!meeting.confirmed.includes(editMeetingData.userId)) {
             // FLOW: Check if other user has already confirmed, if so change status to happened
             if(meeting.confirmed.length === 1) { editMeetingData.status = MeetingStatus.Happened; }
@@ -116,14 +116,14 @@ class MeetingService {
             const relationship = await this.relationship.findOne({ userIds: [(<User & mongoose.Document>meeting.initiator)._id.toString(), (<User & mongoose.Document>meeting.recipient)._id.toString()] });
             await this.relationship.findByIdAndUpdate(relationship._id, { score: relationship.score + 40 }, { new: true });
             // FLOW: Add to editMeetingObject
-            Object.assign(editMeetingObject, { $push: editMeetingData.userId });
+            Object.assign(editMeetingObject, { $push: { confirmed: editMeetingData.userId }});
             delete editMeetingData.confirmed;
           }
         }
         if(editMeetingData.status) {
-          const client = await calendar.createClient((<User & mongoose.Document>meeting.initiator).googleRefreshToken);
           if((<User & mongoose.Document>meeting.initiator)._id === editMeetingData.userId) {
             if(editMeetingData.status === MeetingStatus.Canceled) {
+              const client = await calendar.createClient((<User & mongoose.Document>meeting.initiator).googleRefreshToken);
               await calendar.cancelEvent(client, meeting.googleEventId);
               // FLOW: Send cancelation email
               const userNames = email.formatNames((<User & mongoose.Document>meeting.recipient).name);
@@ -144,14 +144,17 @@ class MeetingService {
             }
           } else {
             if(editMeetingData.status === MeetingStatus.Accepted) { // FLOW: If status is edited to Accepted, edit gcal invite to reflect this
-              await calendar.updateEvent(client, meeting.googleEventId, {
-                attendees: [
-                  {
-                    email: (<User>meeting.recipient).email,
-                    responseStatus: 'accepted'
-                  }
-                ]
-              });
+              if((<User & mongoose.Document>meeting.recipient).dateRegistered) {
+                const client = await calendar.createClient((<User & mongoose.Document>meeting.recipient).googleRefreshToken);
+                await calendar.updateEvent(client, meeting.googleEventId, {
+                  attendees: [
+                    {
+                      email: (<User & mongoose.Document>meeting.recipient).email,
+                      responseStatus: 'accepted'
+                    }
+                  ]
+                });
+              }
               // FLOW: Send email to initiator that recipient accepted invite
               const userNames = email.formatNames((<User & mongoose.Document>meeting.initiator).name);
               const recipientNames = email.formatNames((<User & mongoose.Document>meeting.recipient).name);
@@ -195,6 +198,10 @@ class MeetingService {
               // FLOW: Update relationship score
               await this.relationship.findByIdAndUpdate(relationship._id, { score: relationship.score + 20 }, { new: true });
             } else if(editMeetingData.status === MeetingStatus.Rejected) { // FLOW: If status is edited to Happened, increase ShipRank for rank/add new rank if one does not already exist
+              if((<User & mongoose.Document>meeting.recipient).dateRegistered) {
+                const client = await calendar.createClient((<User & mongoose.Document>meeting.recipient).googleRefreshToken);
+                await calendar.cancelEvent(client, meeting.googleEventId);
+              }
               // FLOW: Send Rejection email
               const userNames = email.formatNames((<User & mongoose.Document>meeting.initiator).name);
               const recipientNames = email.formatNames((<User & mongoose.Document>meeting.recipient).name);
