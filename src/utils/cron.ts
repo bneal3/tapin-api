@@ -37,10 +37,10 @@ class Cron {
   }
 
   public async rankUpdateJob()  {
-    // FLOW: Go through each user's relationship list and update ShipRank based on day since last meeting
+    // FLOW: Go through each user's relationship list and update ShipScore based on day since last meeting
     const relationships = await RelationshipModel.find({});
     relationships.forEach(async (relationship: (Relationship & mongoose.Document)) => {
-      // FLOW: Get meetings for ShipRank calculation
+      // FLOW: Get meetings for ShipScore calculation
       const firstId: any = new mongoose.Types.ObjectId(relationship.userIds[0]);
       const secondId: any = new mongoose.Types.ObjectId(relationship.userIds[1]);
       const meetings = await MeetingModel.find({
@@ -53,7 +53,7 @@ class Cron {
         }],
         status: MeetingStatus.Happened
       }).sort({ dateStart: -1 });
-      // FLOW: Calculate ShipRank
+      // FLOW: Calculate ShipScore
       const value = relationship.score / Math.pow(((new Date()).getDay() - meetings[0].dateStart.getDay()) + 2, Number(process.env.GRAVITY_CONSTANT));
       // FLOW: Update relationship
       await RelationshipModel.findByIdAndUpdate(relationship._id, { value: value });

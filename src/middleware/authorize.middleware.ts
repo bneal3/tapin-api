@@ -23,8 +23,7 @@ async function auth(request: Request, response: Response, next: NextFunction): P
         if(err || !res.user) {
           reject(new NotAuthorizedException());
         } else {
-          const token = request.headers.authorization.split(' ')[1];
-          const authentication = await AuthenticationModel.findOne({ token: token });
+          const authentication = await AuthenticationModel.findOne({ user: res.user._id });
           if(authentication) {
             if(res.payload.access === AccessType.Auth || (res.payload.access === AccessType.Single && authentication.uses === 0)) {
               // FLOW: Add one to uses on authentication

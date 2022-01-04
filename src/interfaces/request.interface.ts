@@ -9,7 +9,6 @@ export enum AccessType {
 }
 
 export interface AuthenticationTokenData {
-  _id: string;
   userId: string;
   access: string;
 }

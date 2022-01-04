@@ -53,7 +53,7 @@ class MeetingService {
   public createMeeting = async (user: (User & mongoose.Document), createMeetingData: CreateMeetingDto) => {
     createMeetingData.dateStart = new Date(createMeetingData.timeStart);
     createMeetingData.dateEnd = new Date(createMeetingData.timeEnd);
-    let recipient = await this.user.findById(createMeetingData.recipientId);
+    const recipient = await this.user.findById(createMeetingData.recipientId);
     if(recipient) {
       createMeetingData.recipient = recipient;
       // FLOW: Create google calendar invite
@@ -72,7 +72,9 @@ class MeetingService {
       const emailData = await email.coreFormat(recipient, user, user._id);
       const formattedStartDate = email.formatDate(meeting.dateStart);
       const formattedEndDate = email.formatDate(meeting.dateEnd);
+      const authentication = await authenticationService.createToken(recipient._id, AccessType.Single);
       await email.sendTemplateEmail(EmailTemplate.Invitation, [{ email: recipient.email , name: recipient.name }], {
+        MEETINGID: meeting._id.toString(),
         FIRSTNAME: emailData.recipient.first,
         LASTNAME: emailData.recipient.last,
         FRIENDFIRST: emailData.friend.first,
@@ -82,6 +84,7 @@ class MeetingService {
         SCORE: emailData.scoreData.score,
         SCOREPOSITION: emailData.scoreData.position,
         SCOREPERCENTAGE: emailData.scoreData.percentage,
+        TOKEN: authentication.token,
         APPURL: process.env.APP_URL
       }, { name: process.env.APP_NAME, email: process.env.NOREPLY_EMAIL });
       // FLOW: Return meeting
@@ -94,21 +97,21 @@ class MeetingService {
   public editMeeting = async (user: (User & mongoose.Document), _id: string, editMeetingData: EditMeetingDto) => {
     let meeting = await this.meeting.findById(_id);
     if(meeting) { // FLOW: If meeting exists
-      await meeting.populate('initiator').execPopulate();
-      await meeting.populate('recipient').execPopulate();
-      if((<User & mongoose.Document>meeting.initiator)._id.equals(user._id) || (<User & mongoose.Document>meeting.recipient)._id.equals(user._id)) { // FLOW: Is editing user a part of the meeting
+      const initiator = <User & mongoose.Document>(await meeting.populate('initiator').execPopulate()).initiator;
+      const recipient = <User & mongoose.Document>(await meeting.populate('recipient').execPopulate()).recipient;
+      if(initiator._id.equals(user._id) || recipient._id.equals(user._id)) { // FLOW: Is editing user a part of the meeting
         const editMeetingObject: any = {};
         // FLOW: Status logic
         if(editMeetingData.status) {
-          if((<User & mongoose.Document>meeting.initiator)._id.equals(user._id)) {
+          if(initiator._id.equals(user._id)) {
             if(editMeetingData.status === MeetingStatus.Canceled) {
               const client = await calendar.createClient(user.googleRefreshToken);
               await calendar.cancelEvent(client, meeting.googleEventId);
               // FLOW: Send cancelation email
-              const emailData = await email.coreFormat(<User & mongoose.Document>meeting.recipient, <User & mongoose.Document>meeting.initiator, (<User & mongoose.Document>meeting.initiator)._id);
+              const emailData = await email.coreFormat(recipient, user._id, user._id);
               const formattedStartDate = email.formatDate(meeting.dateStart);
               const formattedEndDate = email.formatDate(meeting.dateEnd);
-              await email.sendTemplateEmail(EmailTemplate.Invitation, [{ email: (<User & mongoose.Document>meeting.recipient).email , name: (<User & mongoose.Document>meeting.recipient).name }], {
+              await email.sendTemplateEmail(EmailTemplate.Canceled, [{ email: recipient.email , name: recipient.name }], {
                 FIRSTNAME: emailData.recipient.first,
                 LASTNAME: emailData.recipient.last,
                 FRIENDFIRST: emailData.friend.first,
@@ -128,17 +131,17 @@ class MeetingService {
                 await calendar.updateEvent(client, meeting.googleEventId, {
                   attendees: [
                     {
-                      email: (<User & mongoose.Document>meeting.recipient).email,
+                      email: user.email,
                       responseStatus: 'accepted'
                     }
                   ]
                 });
               }
               // FLOW: Send email to initiator that recipient accepted invite
-              const emailData = await email.coreFormat(<User & mongoose.Document>meeting.initiator, <User & mongoose.Document>meeting.recipient, (<User & mongoose.Document>meeting.initiator)._id);
+              const emailData = await email.coreFormat(initiator, user._id, initiator._id);
               const formattedStartDate = email.formatDate(meeting.dateStart);
               const formattedEndDate = email.formatDate(meeting.dateEnd);
-              await email.sendTemplateEmail(EmailTemplate.Accepted, [{ email: (<User & mongoose.Document>meeting.initiator).email, name: (<User & mongoose.Document>meeting.initiator).name }], {
+              await email.sendTemplateEmail(EmailTemplate.Accepted, [{ email: initiator.email, name: initiator.name }], {
                 FIRSTNAME: emailData.recipient.first,
                 LASTNAME: emailData.recipient.last,
                 FRIENDFIRST: emailData.friend.first,
@@ -153,7 +156,9 @@ class MeetingService {
               // FLOW: Queue followup email after the event
               const delay = (meeting.dateEnd.getTime() - (new Date()).getTime()) + Number(process.env.POST_EVENT_EMAIL_DELAY);
               // FLOW: Initiator follow up
-              await email.queueEmail({ templateId: EmailTemplate.PostEvent, to: [{ email: (<User & mongoose.Document>meeting.initiator).email, name: (<User & mongoose.Document>meeting.initiator).name }], params: {
+              const initiatorAuth = await authenticationService.createToken(initiator._id, AccessType.Single);
+              await email.queueEmail({ templateId: EmailTemplate.PostEvent, to: [{ email: initiator.email, name: initiator.name }], params: {
+                MEETINGID: meeting._id.toString(),
                 FIRSTNAME: emailData.recipient.first,
                 LASTNAME: emailData.recipient.last,
                 FRIENDFIRST: emailData.friend.first,
@@ -164,10 +169,13 @@ class MeetingService {
                 SCOREPOSITION: emailData.scoreData.position,
                 SCOREPERCENTAGE: emailData.scoreData.percentage,
                 SCORERELATION: 'your',
+                TOKEN: initiatorAuth.token,
                 APPURL: process.env.APP_URL
-              }, sender: { name: process.env.APP_NAME, email: process.env.NOREPLY_EMAIL }, user: (<User & mongoose.Document>meeting.initiator) }, { delay: delay });
+              }, sender: { name: process.env.APP_NAME, email: process.env.NOREPLY_EMAIL }, user: initiator }, { delay: delay });
               // FLOW: Recipient follow up
-              await email.queueEmail({ templateId: EmailTemplate.PostEvent, to: [{ email: (<User & mongoose.Document>meeting.recipient).email, name: (<User & mongoose.Document>meeting.recipient).name }], params: {
+              const recipientAuth = await authenticationService.createToken(user._id, AccessType.Single);
+              await email.queueEmail({ templateId: EmailTemplate.PostEvent, to: [{ email: user.email, name: user.name }], params: {
+                MEETINGID: meeting._id.toString(),
                 FIRSTNAME: emailData.friend.first,
                 LASTNAME: emailData.friend.last,
                 FRIENDFIRST: emailData.recipient.first,
@@ -178,21 +186,22 @@ class MeetingService {
                 SCOREPOSITION: emailData.scoreData.position,
                 SCOREPERCENTAGE: emailData.scoreData.percentage,
                 SCORERELATION: 'their',
+                TOKEN: recipientAuth.token,
                 APPURL: process.env.APP_URL
-              }, sender: { name: process.env.APP_NAME, email: process.env.NOREPLY_EMAIL }, user: (<User & mongoose.Document>meeting.recipient) }, { delay: delay });
+              }, sender: { name: process.env.APP_NAME, email: process.env.NOREPLY_EMAIL }, user: user }, { delay: delay });
               // FLOW: Update relationship score
-              const relationship = await this.relationship.findOne({ userIds: [(<User & mongoose.Document>meeting.initiator)._id.toString(), (<User & mongoose.Document>meeting.recipient)._id.toString()] });
+              const relationship = await this.relationship.findOne({ userIds: [initiator._id.toString(), user._id.toString()] });
               await this.relationship.findByIdAndUpdate(relationship._id, { score: relationship.score + 20 }, { new: true });
-            } else if(editMeetingData.status === MeetingStatus.Rejected) { // FLOW: If status is edited to Happened, increase ShipRank for rank/add new rank if one does not already exist
+            } else if(editMeetingData.status === MeetingStatus.Rejected) { // FLOW: If status is edited to Happened, increase ShipScore for rank/add new rank if one does not already exist
               if(user.dateRegistered) {
                 const client = await calendar.createClient(user.googleRefreshToken);
                 await calendar.cancelEvent(client, meeting.googleEventId);
               }
               // FLOW: Send Rejection email
-              const emailData = await email.coreFormat(<User & mongoose.Document>meeting.initiator, <User & mongoose.Document>meeting.recipient, (<User & mongoose.Document>meeting.initiator)._id);
+              const emailData = await email.coreFormat(initiator, user, initiator._id);
               const formattedStartDate = email.formatDate(meeting.dateStart);
               const formattedEndDate = email.formatDate(meeting.dateEnd);
-              await email.sendTemplateEmail(EmailTemplate.Rejected, [{ email: (<User & mongoose.Document>meeting.initiator).email, name: (<User & mongoose.Document>meeting.initiator).name }], {
+              await email.sendTemplateEmail(EmailTemplate.Rejected, [{ email: initiator.email, name: initiator.name }], {
                 FIRSTNAME: emailData.recipient.first,
                 LASTNAME: emailData.recipient.last,
                 FRIENDFIRST: emailData.friend.first,
@@ -209,7 +218,7 @@ class MeetingService {
           editMeetingData.dateStatusLastUpdated = new Date();
         }
         // FLOW: Property logic
-        if((<User & mongoose.Document>meeting.initiator)._id.equals(user._id)) {
+        if(initiator._id.equals(user._id)) {
           if(editMeetingData.timeStart || editMeetingData.timeEnd) {
             if(meeting.dateStart.getTime() > Date.now() && meeting.status !== MeetingStatus.Canceled) {
               let dateStart = meeting.dateStart;
@@ -223,10 +232,12 @@ class MeetingService {
                 dateEnd = editMeetingData.dateEnd;
               }
               // FLOW: Send email to recipient if not happened already (status is pending or accepted and now is before previous start time)
-              const emailData = await email.coreFormat(<User & mongoose.Document>meeting.recipient, <User & mongoose.Document>meeting.initiator, (<User & mongoose.Document>meeting.initiator)._id);
+              const emailData = await email.coreFormat(recipient, user, user._id);
               const formattedStartDate = email.formatDate(dateStart);
               const formattedEndDate = email.formatDate(dateEnd);
-              await email.sendTemplateEmail(EmailTemplate.Updated, [{ email: (<User & mongoose.Document>meeting.recipient).email , name: (<User & mongoose.Document>meeting.recipient).name }], {
+              const authentication = await authenticationService.createToken(recipient._id, AccessType.Single);
+              await email.sendTemplateEmail(EmailTemplate.Updated, [{ email: recipient.email , name: recipient.name }], {
+                MEETINGID: meeting._id.toString(),
                 FIRSTNAME: emailData.recipient.first,
                 LASTNAME: emailData.recipient.last,
                 FRIENDFIRST: emailData.friend.first,
@@ -236,6 +247,7 @@ class MeetingService {
                 SCORE: emailData.scoreData.score,
                 SCOREPOSITION: emailData.scoreData.position,
                 SCOREPERCENTAGE: emailData.scoreData.percentage,
+                TOKEN: authentication.token,
                 APPURL: process.env.APP_URL
               }, { name: process.env.APP_NAME, email: process.env.NOREPLY_EMAIL });
               // FLOW: Set meeting status to pending
@@ -252,7 +264,7 @@ class MeetingService {
             // FLOW: Check if other user has already confirmed, if so change status to happened
             if(meeting.confirmed.length === 1) { editMeetingData.status = MeetingStatus.Happened; }
             // FLOW: Update relationship score
-            const relationship = await this.relationship.findOne({ userIds: [(<User & mongoose.Document>meeting.initiator)._id.toString(), (<User & mongoose.Document>meeting.recipient)._id.toString()] });
+            const relationship = await this.relationship.findOne({ userIds: [initiator._id.toString(), recipient._id.toString()] });
             await this.relationship.findByIdAndUpdate(relationship._id, { score: relationship.score + 40 }, { new: true });
             // FLOW: Add to editMeetingObject
             Object.assign(editMeetingObject, { $push: { confirmed: user._id.toString() }});
@@ -273,17 +285,17 @@ class MeetingService {
   public deleteMeeting = async (user: (User & mongoose.Document), _id: string) => {
     const meeting = await this.meeting.findById(_id);
     if(meeting) {
-      await meeting.populate('initiator').execPopulate();
-      await meeting.populate('recipient').execPopulate();
-      if((<User & mongoose.Document>meeting.initiator).equals(user._id)) {
+      const initiator = <User & mongoose.Document>(await meeting.populate('initiator').execPopulate()).initiator;
+      const recipient = <User & mongoose.Document>(await meeting.populate('recipient').execPopulate()).recipient;
+      if(initiator._id.equals(user._id)) {
         // FLOW: Delete gcal event
         const client = await calendar.createClient(user.googleRefreshToken);
         await calendar.cancelEvent(client, meeting.googleEventId);
         // FLOW: Send cancelation email
-        const emailData = await email.coreFormat(<User & mongoose.Document>meeting.recipient, <User & mongoose.Document>meeting.initiator, (<User & mongoose.Document>meeting.recipient)._id);
+        const emailData = await email.coreFormat(recipient, user, user._id);
         const formattedStartDate = email.formatDate(meeting.dateStart);
         const formattedEndDate = email.formatDate(meeting.dateEnd);
-        await email.sendTemplateEmail(EmailTemplate.Invitation, [{ email: (<User & mongoose.Document>meeting.recipient).email , name: (<User & mongoose.Document>meeting.recipient).name }], {
+        await email.sendTemplateEmail(EmailTemplate.Canceled, [{ email: recipient.email , name: recipient.name }], {
           FIRSTNAME: emailData.recipient.first,
           LASTNAME: emailData.recipient.last,
           FRIENDFIRST: emailData.friend.first,

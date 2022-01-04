@@ -107,9 +107,7 @@ class AuthenticationService {
     }
     // FLOW: If not, create one
     if(!authentication) {
-      const authenticationId = new mongoose.Types.ObjectId();
       const authenticationTokenData: AuthenticationTokenData = {
-        _id: authenticationId.toString(),
         userId: userId.toString(),
         access: access
       };

@@ -149,7 +149,7 @@ class Email {
 
   public formatDate(date: Date) {
     const dateString = date.toISOString();
-    const formattedString = dayjs(dateString).format('ddd, MMMM D, YYYY at h A');
+    const formattedString = dayjs(dateString).format('ddd, MMMM D, YYYY [at] h A');
     return formattedString;
   }
 
