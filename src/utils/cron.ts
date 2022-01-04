@@ -109,19 +109,15 @@ class Cron {
         const featuredId = relationshipObject.relationships[featuredIndex].userIds.filter((userId: string) => { return userId != relationshipObject.user._id.toString(); })[0];
         const featured = await UserModel.findById(featuredId);
         // FLOW: Send email
-        const userNames = relationshipObject.user.name.split(' ');
-        const userFirstName = userNames[0];
-        let userLastName = '';
-        if(userNames.length > 1) { userLastName = userNames[1]; }
-        const featuredNames = featured.name.split(' ');
-        const featuredFirstName = featuredNames[0];
-        let featuredLastName = '';
-        if(featuredNames.length > 1) { featuredLastName = featuredNames[1]; }
+        const emailData = await Email.getInstance().coreFormat(relationshipObject.user, featured, relationshipObject.user._id);
         await Email.getInstance().sendTemplateEmail(EmailTemplate.Reminder, [{ email: relationshipObject.user.email , name: relationshipObject.user.name }], {
-          FIRSTNAME: userFirstName,
-          LASTNAME: userLastName,
-          FRIENDFIRST: featuredFirstName,
-          FRIENDLAST: featuredLastName,
+          FIRSTNAME: emailData.recipient.first,
+          LASTNAME: emailData.recipient.last,
+          FRIENDFIRST: emailData.friend.first,
+          FRIENDLAST: emailData.friend.last,
+          SCORE: emailData.scoreData.score,
+          SCOREPOSITION: emailData.scoreData.position,
+          SCOREPERCENTAGE: emailData.scoreData.percentage,
           APPURL: process.env.APP_URL
         }, { name: process.env.APP_NAME, email: process.env.NOREPLY_EMAIL });
         // FLOW: Add user to cache

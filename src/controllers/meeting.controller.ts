@@ -19,7 +19,7 @@ class MeetingController implements Controller {
   private initializeRoutes() {
     this.router.get(`${this.path}`, authorize, this.get);
     this.router.post(`${this.path}`, authorize, validation(CreateMeetingDto), this.post);
-    this.router.patch(`${this.path}/:id`, validation(EditMeetingDto), this.patch);
+    this.router.patch(`${this.path}/:id`, authorize, validation(EditMeetingDto), this.patch);
     this.router.delete(`${this.path}/:id`, authorize, this.delete);
   }
 
@@ -46,11 +46,11 @@ class MeetingController implements Controller {
     }
   }
 
-  private patch = async (request: express.Request, response: express.Response, next: express.NextFunction) => {
+  private patch = async (request: RequestWithUser, response: express.Response, next: express.NextFunction) => {
     const editMeetingData: EditMeetingDto = request.body;
     if(mongoose.Types.ObjectId.isValid(request.params.id)) {
       try {
-        const meeting = await meetingService.editMeeting(request.params.id, editMeetingData);
+        const meeting = await meetingService.editMeeting(request.user, request.params.id, editMeetingData);
         response.send(meeting);
       } catch (err) {
         next(err);

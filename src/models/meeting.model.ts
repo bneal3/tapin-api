@@ -48,9 +48,6 @@ export class CreateMeetingDto {
 }
 
 export class EditMeetingDto {
-  @IsString()
-  public userId: string;
-
   @IsOptional()
   public title: string;
 

@@ -54,6 +54,7 @@ class RelationshipService {
       contact = await this.user.findById(relationshipData.contactId);
     } else {
       if(relationshipData.email && relationshipData.name) {
+        relationshipData.email = userService.sanitizeEmail(relationshipData.email);
         // FLOW: Check if user exists already
         contact = await this.user.findOne({
           email: relationshipData.email,
