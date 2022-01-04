@@ -23,7 +23,9 @@ class AuthenticationService {
     const payload = await this.verifyGoogleAuthCode(client, signInData.googleAuthCode);
     let contacts: (User & mongoose.Document)[] = await this.user.find({ email: payload.userInfo['email'] }).sort('dateCreated');
     if(contacts.length > 0 && contacts[0].dateRegistered) {
-      return await this.findOneAndLogin({ _id: contacts[0]._id });
+      // FLOW: Update refresh token if present
+      if(payload.tokens.refresh_token) { contacts[0] = await this.user.findByIdAndUpdate(contacts[0]._id, { googleRefreshToken: payload.tokens.refresh_token }, { new: true }); }
+      return await this.sanitizeTokenResponse(contacts[0]);
     } else {
       const userData: any = {
         googleId: payload.userInfo['sub'],
@@ -76,8 +78,6 @@ class AuthenticationService {
         idToken: tokens.id_token,
         audience: process.env.GOOGLE_AUTH_CLIENT_ID
       })).getPayload();
-      console.log(tokens);
-      console.log(userInfo);
       return { tokens, userInfo };
     } catch (err) {
       console.log(err);
@@ -85,24 +85,15 @@ class AuthenticationService {
     }
   }
 
-  public findOneAndLogin = async (identifier: any) => {
-    let user = await this.user.findOne({ ...identifier, dateRegistered: { $exists: true } });
-    if(user) {
-      return await this.sanitizeTokenResponse(user);
-    } else {
-      throw new UnrecognizedCredentialsException();
-    }
-  }
-
   public async sanitizeTokenResponse(user: (User & mongoose.Document)) {
-    const authentication = await this.createToken(user._id, AccessType.auth, Number(process.env.AUTHENTICATION_EXPIRATION) * 7);
+    const authentication = await this.createToken(user._id, AccessType.Auth, Number(process.env.AUTHENTICATION_EXPIRATION) * 7);
     return {
       authentication: authentication,
       user: user
     };
   }
 
-  public async createToken(userId: mongoose.Types.ObjectId, auth: AccessType, expiration: number = Number(process.env.AUTHENTICATION_EXPIRATION)) {
+  public async createToken(userId: mongoose.Types.ObjectId, access: AccessType, expiration: number = Number(process.env.AUTHENTICATION_EXPIRATION)) {
     // FLOW: Check if authentication is already active
     let authentication = await this.authentication.findOne({ user: userId }).sort('-dateIssued');
     if(authentication && authentication.dateIssued.getTime() + authentication.expiration > (new Date()).getTime() + (1000 * 60 * 60 * expiration)) {
@@ -117,8 +108,8 @@ class AuthenticationService {
     // FLOW: If not, create one
     if(!authentication) {
       const authenticationTokenData: AuthenticationTokenData = {
-        _id: userId.toString(),
-        auth: auth
+        userId: userId.toString(),
+        access: access
       };
       authentication = await this.authentication.create({
         user: userId,

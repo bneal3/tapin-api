@@ -16,9 +16,21 @@ class Calendar {
     try {
       const client = new this.api.auth.OAuth2(process.env.GOOGLE_AUTH_CLIENT_ID, process.env.GOOGLE_AUTH_CLIENT_SECRET, process.env.APP_URL);
       client.setCredentials({ refresh_token: refreshToken });
+      // FLOW: Check validity of refresh token
+      const auth = google.oauth2({ version: 'v2', auth: client });
+      await new Promise((resolve, reject) => {
+        auth.userinfo.get((err: any, res: any) => {
+          if(err) {
+            reject(err);
+          } else {
+            resolve(res);
+          }
+        });
+      });
       return client;
     } catch (err) {
       // FLOW: Cause special exception if refreshToken no longer works to signal to frontend to re-sign in
+      console.log(err);
       throw new ServiceDependencyException();
     }
   }
@@ -76,12 +88,13 @@ class Calendar {
   public async updateEvent(client: any, eventId: string, updateData: any) {
     const calendar = google.calendar({ version: 'v3', auth: client });
     return await new Promise((resolve, reject) => {
-      calendar.events.udpate({
+      calendar.events.patch({
+        auth: client,
         calendarId: 'primary',
         eventId: eventId,
         sendUpdates: 'none',
         resource: updateData
-      }, (err: any, res: any) => {
+      }, (err: any, event: any) => {
         if(err) {
           console.log(err);
           reject(err);
@@ -100,13 +113,14 @@ class Calendar {
         auth: client,
         calendarId: 'primary',
         eventId: eventId,
-        sendUpdates: 'none',
-      }, (err: any, res: any) => {
+        sendUpdates: 'none'
+      }, (err: any, event: any) => {
         if(err) {
           console.log(err);
-          reject();
+          reject(err);
         } else{
-          resolve();
+          console.log(event);
+          resolve(event);
         }
       });
     });

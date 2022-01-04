@@ -12,11 +12,14 @@ passport.use(
     secretOrKey: process.env.JWT_SECRET
   }, async function (jwtPayload: AuthenticationTokenData, done: any) {
     try {
-      const user = await UserModel.findById(jwtPayload._id);
+      const user = await UserModel.findById(jwtPayload.userId);
       if(!user) {
         done(new NotAuthorizedException(), false);
       } else {
-        done(null, user);
+        done(null, {
+          payload: jwtPayload,
+          user: user
+        });
       }
     } catch (err) {
       done(new ServerProcessException('Problem authorizing request', { namespace: 'utils.passport', err }), false);

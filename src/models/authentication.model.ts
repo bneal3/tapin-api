@@ -6,6 +6,7 @@ import { User } from './user.model';
 export interface Authentication {
   user: mongoose.Types.ObjectId | User;
   token: string;
+  uses: number,
   expiration: number;
   dateIssued: Date;
 }
@@ -24,6 +25,10 @@ const AuthenticationSchema = new mongoose.Schema({
   token: {
     type: String,
     required: true
+  },
+  uses: {
+    type: Number,
+    default: 0
   },
   expiration: {
     type: Number,

@@ -37,10 +37,10 @@ class Cron {
   }
 
   public async rankUpdateJob()  {
-    // FLOW: Go through each user's relationship list and update ShipRank based on day since last meeting
+    // FLOW: Go through each user's relationship list and update ShipScore based on day since last meeting
     const relationships = await RelationshipModel.find({});
     relationships.forEach(async (relationship: (Relationship & mongoose.Document)) => {
-      // FLOW: Get meetings for ShipRank calculation
+      // FLOW: Get meetings for ShipScore calculation
       const firstId: any = new mongoose.Types.ObjectId(relationship.userIds[0]);
       const secondId: any = new mongoose.Types.ObjectId(relationship.userIds[1]);
       const meetings = await MeetingModel.find({
@@ -52,8 +52,8 @@ class Cron {
           recipient: firstId
         }],
         status: MeetingStatus.Happened
-      }).sort(['dateStart', -1]);
-      // FLOW: Calculate ShipRank
+      }).sort({ dateStart: -1 });
+      // FLOW: Calculate ShipScore
       const value = relationship.score / Math.pow(((new Date()).getDay() - meetings[0].dateStart.getDay()) + 2, Number(process.env.GRAVITY_CONSTANT));
       // FLOW: Update relationship
       await RelationshipModel.findByIdAndUpdate(relationship._id, { value: value });
@@ -96,7 +96,7 @@ class Cron {
             recipient: firstId
           }],
           status: MeetingStatus.Happened
-        }).sort(['dateStart', -1]);
+        }).sort({ dateStart: -1 });
         // FLOW: Check if current user is in cache
         const queue = Bull.getInstance().get(`reminderEmailCache`, Cron.getInstance().reminderEmailCacheOptions, () => {});
         const jobId = `${relationshipObject.user._id.toString()}:${relationship.userIds.filter((userId: string) => { return userId !== relationshipObject.user._id.toString(); })[0]}`;
@@ -109,19 +109,15 @@ class Cron {
         const featuredId = relationshipObject.relationships[featuredIndex].userIds.filter((userId: string) => { return userId != relationshipObject.user._id.toString(); })[0];
         const featured = await UserModel.findById(featuredId);
         // FLOW: Send email
-        const userNames = relationshipObject.user.name.split(' ');
-        const userFirstName = userNames[0];
-        let userLastName = '';
-        if(userNames.length > 1) { userLastName = userNames[1]; }
-        const featuredNames = featured.name.split(' ');
-        const featuredFirstName = featuredNames[0];
-        let featuredLastName = '';
-        if(featuredNames.length > 1) { featuredLastName = featuredNames[1]; }
+        const emailData = await Email.getInstance().coreFormat(relationshipObject.user, featured, relationshipObject.user._id);
         await Email.getInstance().sendTemplateEmail(EmailTemplate.Reminder, [{ email: relationshipObject.user.email , name: relationshipObject.user.name }], {
-          FIRSTNAME: userFirstName,
-          LASTNAME: userLastName,
-          FRIENDFIRST: featuredFirstName,
-          FRIENDLAST: featuredLastName,
+          FIRSTNAME: emailData.recipient.first,
+          LASTNAME: emailData.recipient.last,
+          FRIENDFIRST: emailData.friend.first,
+          FRIENDLAST: emailData.friend.last,
+          SCORE: emailData.scoreData.score,
+          SCOREPOSITION: emailData.scoreData.position,
+          SCOREPERCENTAGE: emailData.scoreData.percentage,
           APPURL: process.env.APP_URL
         }, { name: process.env.APP_NAME, email: process.env.NOREPLY_EMAIL });
         // FLOW: Add user to cache

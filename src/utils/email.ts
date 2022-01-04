@@ -1,6 +1,7 @@
 import { Job } from 'bull';
 import * as mongoose from 'mongoose';
 const SendinBlueAPI = require('sib-api-v3-sdk');
+const dayjs = require('dayjs');
 
 import { Meeting, MeetingModel, MeetingStatus, Relationship, RelationshipModel, User, UserModel } from '../models/index';
 import Bull from './bull';
@@ -12,7 +13,8 @@ export enum EmailTemplate {
   Rejected,
   PostEvent,
   Canceled,
-  Reminder
+  Reminder,
+  Updated
 }
 
 class Email {
@@ -94,8 +96,17 @@ class Email {
     return false;
   }
 
-  public coreFormat() {
-    // TODO: Refactor standard email fields
+  public async coreFormat(recipient: (User & mongoose.Document), friend: (User & mongoose.Document), relationshipUserId: mongoose.Types.ObjectId) {
+    const recipientNames = this.formatNames(recipient.name);
+    const friendNames = this.formatNames(friend.name);
+    const relationships = await RelationshipModel.find({ userIds: relationshipUserId.toString() });
+    const relationship = relationships.filter((relationship) => { return relationship.userIds.includes(relationshipUserId.toString()); })[0];
+    const score = this.formatScore(relationships, relationship._id);
+    return {
+      recipient: recipientNames,
+      friend: friendNames,
+      scoreData: score
+    };
   }
 
   public formatNames(name: string) {
@@ -113,7 +124,7 @@ class Email {
     relationships = relationships.sort((a: (Relationship & mongoose.Document), b: (Relationship & mongoose.Document)) => { return a.score - b.score; }); // ascending
     let index = -1;
     for(let i = 0; i < relationships.length; i++) {
-      if(relationships[i]._id === relationshipId) {
+      if(relationships[i]._id.equals(relationshipId)) {
         index = i;
         break;
       }
@@ -131,13 +142,15 @@ class Email {
     }
     return {
       percentage: percentage,
-      position: position
+      position: position,
+      score: relationships[index].score
     }
   }
 
   public formatDate(date: Date) {
-    const dateString = date.toString();
-    // TODO: Fill this out to Day, Date, Time
+    const dateString = date.toISOString();
+    const formattedString = dayjs(dateString).format('ddd, MMMM D, YYYY [at] h A');
+    return formattedString;
   }
 
   public static getInstance(): Email {

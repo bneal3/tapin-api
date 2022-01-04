@@ -31,6 +31,7 @@
     "class-validator": "^0.11.0",
     "copyfiles": "^2.4.1",
     "cors": "^2.8.5",
+    "dayjs": "^1.10.7",
     "express": "^4.17.1",
     "google-auth-library": "^7.11.0",
     "googleapis": "^92.0.0",
