@@ -60,7 +60,7 @@ class Email {
   }
 
   public async emailJob(job: Job) {
-    let shouldSend = await Email.getInstance().shouldSend(job.data);
+    const shouldSend = await Email.getInstance().shouldSend(job.data);
     if(shouldSend) {
       return await Email.getInstance().sendTemplateEmail(job.data.templateId, job.data.to, job.data.params, job.data.sender);
     }
@@ -84,10 +84,10 @@ class Email {
     const receiver = <User & mongoose.Document>data.to;
     if(template && receiver) {
       switch(template) {
-        case EmailTemplate.PostEvent:
+        case EmailTemplate.PostEvent: // (meetingId, dateEnd)
           // FLOW: If event was canceled, do not send
-          const meeting = <Meeting & mongoose.Document>data.meeting;
-          if(!meeting || meeting.status === MeetingStatus.Canceled) { return false; }
+          const meeting = await MeetingModel.findById(data.meetingId);
+          if(!meeting || meeting.status !== MeetingStatus.Accepted || meeting.dateEnd !== data.dateEnd) { return false; }
           return true;
         default:
           return true;

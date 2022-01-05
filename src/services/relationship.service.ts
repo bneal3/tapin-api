@@ -102,7 +102,7 @@ class RelationshipService {
           recipient: firstId
         }],
         status: { $in: [MeetingStatus.Pending, MeetingStatus.Accepted] },
-        dateStart: { $gt: new Date() }
+        dateEnd: { $gt: new Date() }
       });
       if(meetings.length > 0) {
         for(let i = 0; i < meetings.length; i++) {

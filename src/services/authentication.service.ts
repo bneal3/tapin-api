@@ -114,6 +114,7 @@ class AuthenticationService {
       authentication = await this.authentication.create({
         user: userId,
         token: jwt.sign(authenticationTokenData, process.env.JWT_SECRET, { expiresIn: Number(Math.ceil(60 * 60 * expiration).toFixed(0)) }),
+        access: access,
         expiration: 1000 * 60 * 60 * expiration
       });
     }

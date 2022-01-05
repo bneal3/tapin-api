@@ -51,10 +51,11 @@ class Cron {
           initiator: secondId,
           recipient: firstId
         }],
-        status: MeetingStatus.Happened
-      }).sort({ dateStart: -1 });
+        status: { $nin: [MeetingStatus.Rejected, MeetingStatus.Canceled] },
+        'confirmed.0': { "$exists": true }
+      }).sort({ dateEnd: -1 });
       // FLOW: Calculate ShipScore
-      const value = relationship.score / Math.pow(((new Date()).getDay() - meetings[0].dateStart.getDay()) + 2, Number(process.env.GRAVITY_CONSTANT));
+      const value = relationship.score / Math.pow(((new Date()).getDay() - meetings[0].dateEnd.getDay()) + 2, Number(process.env.GRAVITY_CONSTANT));
       // FLOW: Update relationship
       await RelationshipModel.findByIdAndUpdate(relationship._id, { value: value });
     });
@@ -95,8 +96,9 @@ class Cron {
             initiator: secondId,
             recipient: firstId
           }],
-          status: MeetingStatus.Happened
-        }).sort({ dateStart: -1 });
+          status: { $nin: [MeetingStatus.Rejected, MeetingStatus.Canceled] },
+          'confirmed.0': { "$exists": true }
+        }).sort({ dateEnd: -1 });
         // FLOW: Check if current user is in cache
         const queue = Bull.getInstance().get(`reminderEmailCache`, Cron.getInstance().reminderEmailCacheOptions, () => {});
         const jobId = `${relationshipObject.user._id.toString()}:${relationship.userIds.filter((userId: string) => { return userId !== relationshipObject.user._id.toString(); })[0]}`;

@@ -104,11 +104,11 @@ class MeetingService {
         // FLOW: Status logic
         if(editMeetingData.status) {
           if(initiator._id.equals(user._id)) {
-            if(editMeetingData.status === MeetingStatus.Canceled) {
+            if(editMeetingData.status === MeetingStatus.Canceled && meeting.dateEnd.getTime() > Date.now()) {
               const client = await calendar.createClient(user.googleRefreshToken);
               await calendar.cancelEvent(client, meeting.googleEventId);
               // FLOW: Send cancelation email
-              const emailData = await email.coreFormat(recipient, user._id, user._id);
+              const emailData = await email.coreFormat(recipient, user, user._id);
               const formattedStartDate = email.formatDate(meeting.dateStart);
               const formattedEndDate = email.formatDate(meeting.dateEnd);
               await email.sendTemplateEmail(EmailTemplate.Canceled, [{ email: recipient.email , name: recipient.name }], {
@@ -125,102 +125,138 @@ class MeetingService {
               }, { name: process.env.APP_NAME, email: process.env.NOREPLY_EMAIL });
             }
           } else {
-            if(editMeetingData.status === MeetingStatus.Accepted) { // FLOW: If status is edited to Accepted, edit gcal invite to reflect this
-              if(user.dateRegistered) {
-                const client = await calendar.createClient(user.googleRefreshToken);
-                await calendar.updateEvent(client, meeting.googleEventId, {
-                  attendees: [
-                    {
-                      email: user.email,
-                      responseStatus: 'accepted'
-                    }
-                  ]
-                });
+            if(meeting.dateEnd.getTime() > Date.now()) { // FLOW: Can only Accept, Reject or Cancel if dateEnd is greater than now
+              if(editMeetingData.status === MeetingStatus.Accepted && (meeting.status === MeetingStatus.Pending || meeting.status === MeetingStatus.Rejected)) { // FLOW: If status is edited to Accepted, edit gcal invite to reflect this
+                if(user.dateRegistered) {
+                  const client = await calendar.createClient(user.googleRefreshToken);
+                  await calendar.updateEvent(client, meeting.googleEventId, {
+                    attendees: [
+                      {
+                        email: user.email,
+                        responseStatus: 'accepted'
+                      }
+                    ]
+                  });
+                }
+                // FLOW: Send email to initiator that recipient accepted invite
+                const emailData = await email.coreFormat(initiator, user, initiator._id);
+                const formattedStartDate = email.formatDate(meeting.dateStart);
+                const formattedEndDate = email.formatDate(meeting.dateEnd);
+                await email.sendTemplateEmail(EmailTemplate.Accepted, [{ email: initiator.email, name: initiator.name }], {
+                  FIRSTNAME: emailData.recipient.first,
+                  LASTNAME: emailData.recipient.last,
+                  FRIENDFIRST: emailData.friend.first,
+                  FRIENDLAST: emailData.friend.last,
+                  STARTTIME: formattedStartDate,
+                  ENDTIME: formattedEndDate,
+                  SCORE: emailData.scoreData.score,
+                  SCOREPOSITION: emailData.scoreData.position,
+                  SCOREPERCENTAGE: emailData.scoreData.percentage,
+                  APPURL: process.env.APP_URL
+                }, { name: process.env.APP_NAME, email: process.env.NOREPLY_EMAIL });
+                // FLOW: Queue followup emails after the event
+                const delay = (meeting.dateEnd.getTime() - (new Date()).getTime()) + Number(process.env.POST_EVENT_EMAIL_DELAY);
+                // FLOW: Initiator follow up
+                const initiatorAuth = await authenticationService.createToken(initiator._id, AccessType.Single);
+                await email.queueEmail({ templateId: EmailTemplate.PostEvent, to: [{ email: initiator.email, name: initiator.name }], params: {
+                  MEETINGID: meeting._id.toString(),
+                  FIRSTNAME: emailData.recipient.first,
+                  LASTNAME: emailData.recipient.last,
+                  FRIENDFIRST: emailData.friend.first,
+                  FRIENDLAST: emailData.friend.last,
+                  STARTTIME: formattedStartDate,
+                  ENDTIME: formattedEndDate,
+                  SCORE: emailData.scoreData.score,
+                  SCOREPOSITION: emailData.scoreData.position,
+                  SCOREPERCENTAGE: emailData.scoreData.percentage,
+                  SCORERELATION: 'your',
+                  TOKEN: initiatorAuth.token,
+                  APPURL: process.env.APP_URL
+                }, sender: { name: process.env.APP_NAME, email: process.env.NOREPLY_EMAIL }, meetingId: meeting._id.toString(), dateEnd: meeting.dateEnd }, { delay: delay });
+                // FLOW: Recipient follow up
+                const recipientAuth = await authenticationService.createToken(user._id, AccessType.Single);
+                await email.queueEmail({ templateId: EmailTemplate.PostEvent, to: [{ email: user.email, name: user.name }], params: {
+                  MEETINGID: meeting._id.toString(),
+                  FIRSTNAME: emailData.friend.first,
+                  LASTNAME: emailData.friend.last,
+                  FRIENDFIRST: emailData.recipient.first,
+                  FRIENDLAST: emailData.recipient.last,
+                  STARTTIME: formattedStartDate,
+                  ENDTIME: formattedEndDate,
+                  SCORE: emailData.scoreData.score,
+                  SCOREPOSITION: emailData.scoreData.position,
+                  SCOREPERCENTAGE: emailData.scoreData.percentage,
+                  SCORERELATION: 'their',
+                  TOKEN: recipientAuth.token,
+                  APPURL: process.env.APP_URL
+                }, sender: { name: process.env.APP_NAME, email: process.env.NOREPLY_EMAIL }, meetingId: meeting._id.toString(), dateEnd: meeting.dateEnd }, { delay: delay });
+                // FLOW: Update relationship score
+                const relationship = await this.relationship.findOne({ userIds: [initiator._id.toString(), user._id.toString()] });
+                await this.relationship.findByIdAndUpdate(relationship._id, { score: relationship.score + 20 }, { new: true });
+              } else if(editMeetingData.status === MeetingStatus.Rejected && (meeting.status === MeetingStatus.Pending || meeting.status === MeetingStatus.Accepted)) { // FLOW: If status is edited to Happened, increase ShipScore for rank/add new rank if one does not already exist
+                if(user.dateRegistered) {
+                  const client = await calendar.createClient(user.googleRefreshToken);
+                  await calendar.updateEvent(client, meeting.googleEventId, {
+                    attendees: [
+                      {
+                        email: user.email,
+                        responseStatus: 'declined'
+                      }
+                    ]
+                  });
+                }
+                // FLOW: Send Rejection email
+                const emailData = await email.coreFormat(initiator, user, initiator._id);
+                const formattedStartDate = email.formatDate(meeting.dateStart);
+                const formattedEndDate = email.formatDate(meeting.dateEnd);
+                await email.sendTemplateEmail(EmailTemplate.Rejected, [{ email: initiator.email, name: initiator.name }], {
+                  FIRSTNAME: emailData.recipient.first,
+                  LASTNAME: emailData.recipient.last,
+                  FRIENDFIRST: emailData.friend.first,
+                  FRIENDLAST: emailData.friend.last,
+                  STARTTIME: formattedStartDate,
+                  ENDTIME: formattedEndDate,
+                  SCORE: emailData.scoreData.score,
+                  SCOREPOSITION: emailData.scoreData.position,
+                  SCOREPERCENTAGE: emailData.scoreData.percentage,
+                  APPURL: process.env.APP_URL
+                }, { name: process.env.APP_NAME, email: process.env.NOREPLY_EMAIL });
+              } else if(editMeetingData.status == MeetingStatus.Canceled && meeting.status !== MeetingStatus.Pending) {
+                if(user.dateRegistered) {
+                  const client = await calendar.createClient(user.googleRefreshToken);
+                  await calendar.updateEvent(client, meeting.googleEventId, {
+                    attendees: [
+                      {
+                        email: user.email,
+                        responseStatus: 'declined'
+                      }
+                    ]
+                  });
+                }
+                // FLOW: Send cancelation email
+                const emailData = await email.coreFormat(user, recipient, user._id);
+                const formattedStartDate = email.formatDate(meeting.dateStart);
+                const formattedEndDate = email.formatDate(meeting.dateEnd);
+                await email.sendTemplateEmail(EmailTemplate.Canceled, [{ email: recipient.email, name: recipient.name }], {
+                  FIRSTNAME: emailData.recipient.first,
+                  LASTNAME: emailData.recipient.last,
+                  FRIENDFIRST: emailData.friend.first,
+                  FRIENDLAST: emailData.friend.last,
+                  STARTTIME: formattedStartDate,
+                  ENDTIME: formattedEndDate,
+                  SCORE: emailData.scoreData.score,
+                  SCOREPOSITION: emailData.scoreData.position,
+                  SCOREPERCENTAGE: emailData.scoreData.percentage,
+                  APPURL: process.env.APP_URL
+                }, { name: process.env.APP_NAME, email: process.env.NOREPLY_EMAIL });
               }
-              // FLOW: Send email to initiator that recipient accepted invite
-              const emailData = await email.coreFormat(initiator, user._id, initiator._id);
-              const formattedStartDate = email.formatDate(meeting.dateStart);
-              const formattedEndDate = email.formatDate(meeting.dateEnd);
-              await email.sendTemplateEmail(EmailTemplate.Accepted, [{ email: initiator.email, name: initiator.name }], {
-                FIRSTNAME: emailData.recipient.first,
-                LASTNAME: emailData.recipient.last,
-                FRIENDFIRST: emailData.friend.first,
-                FRIENDLAST: emailData.friend.last,
-                STARTTIME: formattedStartDate,
-                ENDTIME: formattedEndDate,
-                SCORE: emailData.scoreData.score,
-                SCOREPOSITION: emailData.scoreData.position,
-                SCOREPERCENTAGE: emailData.scoreData.percentage,
-                APPURL: process.env.APP_URL
-              }, { name: process.env.APP_NAME, email: process.env.NOREPLY_EMAIL });
-              // FLOW: Queue followup email after the event
-              const delay = (meeting.dateEnd.getTime() - (new Date()).getTime()) + Number(process.env.POST_EVENT_EMAIL_DELAY);
-              // FLOW: Initiator follow up
-              const initiatorAuth = await authenticationService.createToken(initiator._id, AccessType.Single);
-              await email.queueEmail({ templateId: EmailTemplate.PostEvent, to: [{ email: initiator.email, name: initiator.name }], params: {
-                MEETINGID: meeting._id.toString(),
-                FIRSTNAME: emailData.recipient.first,
-                LASTNAME: emailData.recipient.last,
-                FRIENDFIRST: emailData.friend.first,
-                FRIENDLAST: emailData.friend.last,
-                STARTTIME: formattedStartDate,
-                ENDTIME: formattedEndDate,
-                SCORE: emailData.scoreData.score,
-                SCOREPOSITION: emailData.scoreData.position,
-                SCOREPERCENTAGE: emailData.scoreData.percentage,
-                SCORERELATION: 'your',
-                TOKEN: initiatorAuth.token,
-                APPURL: process.env.APP_URL
-              }, sender: { name: process.env.APP_NAME, email: process.env.NOREPLY_EMAIL }, user: initiator }, { delay: delay });
-              // FLOW: Recipient follow up
-              const recipientAuth = await authenticationService.createToken(user._id, AccessType.Single);
-              await email.queueEmail({ templateId: EmailTemplate.PostEvent, to: [{ email: user.email, name: user.name }], params: {
-                MEETINGID: meeting._id.toString(),
-                FIRSTNAME: emailData.friend.first,
-                LASTNAME: emailData.friend.last,
-                FRIENDFIRST: emailData.recipient.first,
-                FRIENDLAST: emailData.recipient.last,
-                STARTTIME: formattedStartDate,
-                ENDTIME: formattedEndDate,
-                SCORE: emailData.scoreData.score,
-                SCOREPOSITION: emailData.scoreData.position,
-                SCOREPERCENTAGE: emailData.scoreData.percentage,
-                SCORERELATION: 'their',
-                TOKEN: recipientAuth.token,
-                APPURL: process.env.APP_URL
-              }, sender: { name: process.env.APP_NAME, email: process.env.NOREPLY_EMAIL }, user: user }, { delay: delay });
-              // FLOW: Update relationship score
-              const relationship = await this.relationship.findOne({ userIds: [initiator._id.toString(), user._id.toString()] });
-              await this.relationship.findByIdAndUpdate(relationship._id, { score: relationship.score + 20 }, { new: true });
-            } else if(editMeetingData.status === MeetingStatus.Rejected) { // FLOW: If status is edited to Happened, increase ShipScore for rank/add new rank if one does not already exist
-              if(user.dateRegistered) {
-                const client = await calendar.createClient(user.googleRefreshToken);
-                await calendar.cancelEvent(client, meeting.googleEventId);
-              }
-              // FLOW: Send Rejection email
-              const emailData = await email.coreFormat(initiator, user, initiator._id);
-              const formattedStartDate = email.formatDate(meeting.dateStart);
-              const formattedEndDate = email.formatDate(meeting.dateEnd);
-              await email.sendTemplateEmail(EmailTemplate.Rejected, [{ email: initiator.email, name: initiator.name }], {
-                FIRSTNAME: emailData.recipient.first,
-                LASTNAME: emailData.recipient.last,
-                FRIENDFIRST: emailData.friend.first,
-                FRIENDLAST: emailData.friend.last,
-                STARTTIME: formattedStartDate,
-                ENDTIME: formattedEndDate,
-                SCORE: emailData.scoreData.score,
-                SCOREPOSITION: emailData.scoreData.position,
-                SCOREPERCENTAGE: emailData.scoreData.percentage,
-                APPURL: process.env.APP_URL
-              }, { name: process.env.APP_NAME, email: process.env.NOREPLY_EMAIL });
             }
           }
-          editMeetingData.dateStatusLastUpdated = new Date();
         }
         // FLOW: Property logic
         if(initiator._id.equals(user._id)) {
           if(editMeetingData.timeStart || editMeetingData.timeEnd) {
-            if(meeting.dateStart.getTime() > Date.now() && meeting.status !== MeetingStatus.Canceled) {
+            if(meeting.status !== MeetingStatus.Canceled && meeting.dateEnd.getTime() > Date.now()) {
               let dateStart = meeting.dateStart;
               let dateEnd = meeting.dateEnd;
               if(editMeetingData.timeStart) {
@@ -252,25 +288,27 @@ class MeetingService {
               }, { name: process.env.APP_NAME, email: process.env.NOREPLY_EMAIL });
               // FLOW: Set meeting status to pending
               editMeetingData.status = MeetingStatus.Pending;
-              editMeetingData.dateStatusLastUpdated = new Date();
             }
           }
         } else {
           if(editMeetingData.title) { delete editMeetingData.title; }
         }
         // FLOW: Confirmed logic
-        if(editMeetingData.confirmed && (meeting.status === MeetingStatus.Pending || meeting.status === MeetingStatus.Accepted)) {
-          if(!meeting.confirmed.includes(user._id.toString())) {
-            // FLOW: Check if other user has already confirmed, if so change status to happened
-            if(meeting.confirmed.length === 1) { editMeetingData.status = MeetingStatus.Happened; }
-            // FLOW: Update relationship score
-            const relationship = await this.relationship.findOne({ userIds: [initiator._id.toString(), recipient._id.toString()] });
-            await this.relationship.findByIdAndUpdate(relationship._id, { score: relationship.score + 40 }, { new: true });
-            // FLOW: Add to editMeetingObject
-            Object.assign(editMeetingObject, { $push: { confirmed: user._id.toString() }});
-            delete editMeetingData.confirmed;
+        if(editMeetingData.confirmed) {
+          if((meeting.status === MeetingStatus.Pending || meeting.status === MeetingStatus.Accepted) && meeting.dateEnd.getTime() < Date.now()) {
+            if(!meeting.confirmed.includes(user._id.toString())) {
+              // FLOW: Check if other user has already confirmed, if so change status to happened
+              if(meeting.confirmed.length === 1) { editMeetingData.status = MeetingStatus.Happened; }
+              // FLOW: Update relationship score
+              const relationship = await this.relationship.findOne({ userIds: [initiator._id.toString(), recipient._id.toString()] });
+              await this.relationship.findByIdAndUpdate(relationship._id, { score: relationship.score + 40 }, { new: true });
+              // FLOW: Add to editMeetingObject
+              Object.assign(editMeetingObject, { $push: { confirmed: user._id.toString() }});
+            }
           }
+          delete editMeetingData.confirmed;
         }
+        if(editMeetingData.status) { editMeetingData.dateStatusLastUpdated = new Date(); }
         Object.assign(editMeetingObject, editMeetingData);
         meeting = await this.meeting.findByIdAndUpdate(meeting._id, editMeetingObject, { new: true });
         return meeting;
