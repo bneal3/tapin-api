@@ -6,7 +6,6 @@ import * as morgan from 'morgan';
 import * as path from 'path';
 
 import './config/index';
-import './utils/passport';
 
 import { Controller } from './interfaces/index';
 import Logger from './utils/logger';

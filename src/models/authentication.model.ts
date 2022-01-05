@@ -1,11 +1,13 @@
 import * as mongoose from 'mongoose';
 import { IsOptional, IsString } from 'class-validator';
 
+import { AccessType } from '../interfaces/index';
 import { User } from './user.model';
 
 export interface Authentication {
   user: mongoose.Types.ObjectId | User;
   token: string;
+  access: AccessType;
   uses: number,
   expiration: number;
   dateIssued: Date;
@@ -25,6 +27,10 @@ const AuthenticationSchema = new mongoose.Schema({
   token: {
     type: String,
     required: true
+  },
+  access: {
+    type: AccessType,
+    default: AccessType.Auth
   },
   uses: {
     type: Number,
