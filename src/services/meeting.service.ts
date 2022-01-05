@@ -259,17 +259,19 @@ class MeetingService {
           if(editMeetingData.title) { delete editMeetingData.title; }
         }
         // FLOW: Confirmed logic
-        if(editMeetingData.confirmed && (meeting.status === MeetingStatus.Pending || meeting.status === MeetingStatus.Accepted)) {
-          if(!meeting.confirmed.includes(user._id.toString())) {
-            // FLOW: Check if other user has already confirmed, if so change status to happened
-            if(meeting.confirmed.length === 1) { editMeetingData.status = MeetingStatus.Happened; }
-            // FLOW: Update relationship score
-            const relationship = await this.relationship.findOne({ userIds: [initiator._id.toString(), recipient._id.toString()] });
-            await this.relationship.findByIdAndUpdate(relationship._id, { score: relationship.score + 40 }, { new: true });
-            // FLOW: Add to editMeetingObject
-            Object.assign(editMeetingObject, { $push: { confirmed: user._id.toString() }});
-            delete editMeetingData.confirmed;
+        if(editMeetingData.confirmed) {
+          if(meeting.status === MeetingStatus.Pending || meeting.status === MeetingStatus.Accepted) {
+            if(!meeting.confirmed.includes(user._id.toString())) {
+              // FLOW: Check if other user has already confirmed, if so change status to happened
+              if(meeting.confirmed.length === 1) { editMeetingData.status = MeetingStatus.Happened; }
+              // FLOW: Update relationship score
+              const relationship = await this.relationship.findOne({ userIds: [initiator._id.toString(), recipient._id.toString()] });
+              await this.relationship.findByIdAndUpdate(relationship._id, { score: relationship.score + 40 }, { new: true });
+              // FLOW: Add to editMeetingObject
+              Object.assign(editMeetingObject, { $push: { confirmed: user._id.toString() }});
+            }
           }
+          delete editMeetingData.confirmed; 
         }
         Object.assign(editMeetingObject, editMeetingData);
         meeting = await this.meeting.findByIdAndUpdate(meeting._id, editMeetingObject, { new: true });
