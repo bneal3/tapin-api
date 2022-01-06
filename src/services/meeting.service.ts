@@ -123,6 +123,8 @@ class MeetingService {
                 SCOREPERCENTAGE: emailData.scoreData.percentage,
                 APPURL: process.env.APP_URL
               }, { name: process.env.APP_NAME, email: process.env.NOREPLY_EMAIL });
+            } else {
+              delete editMeetingData.status;
             }
           } else {
             if(meeting.dateEnd.getTime() > Date.now()) { // FLOW: Can only Accept, Reject or Cancel if dateEnd is greater than now
@@ -249,6 +251,8 @@ class MeetingService {
                   SCOREPERCENTAGE: emailData.scoreData.percentage,
                   APPURL: process.env.APP_URL
                 }, { name: process.env.APP_NAME, email: process.env.NOREPLY_EMAIL });
+              } else {
+                delete editMeetingData.status;
               }
             }
           }
