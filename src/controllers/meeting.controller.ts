@@ -42,7 +42,7 @@ class MeetingController implements Controller {
         next(err);
       }
     } else {
-      next(new BadParametersException());
+      next(new BadParametersException(`recipientId`, `not a valid id`));
     }
   }
 
@@ -56,7 +56,7 @@ class MeetingController implements Controller {
         next(err);
       }
     } else {
-      next(new BadParametersException());
+      next(new BadParametersException(`id`, `not a valid id`));
     }
   }
 
@@ -69,7 +69,7 @@ class MeetingController implements Controller {
         next(err);
       }
     } else {
-      next(new BadParametersException());
+      next(new BadParametersException(`id`, `not a valid id`));
     }
   }
 }

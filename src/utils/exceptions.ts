@@ -13,21 +13,6 @@ class HttpException extends Error {
   }
 }
 
-class ServerProcessException extends HttpException {
-  constructor(message: string, meta?: any) {
-    super(500, message, meta);
-
-    const metadata = meta || {};
-    Logger.getInstance().logger.error(message, { metadata });
-  }
-}
-
-class BadParametersException extends HttpException {
-  constructor() {
-    super(422, 'Couldn\'t process data');
-  }
-}
-
 class UnrecognizedCredentialsException extends HttpException {
   constructor() {
     super(401, 'Unrecognized authentication credentials');
@@ -51,6 +36,22 @@ class ObjectAlreadyExistsException extends HttpException {
     super(409, `${object} with that ${field} already exists`);
   }
 }
+
+class BadParametersException extends HttpException {
+  constructor(field: string, message: string) {
+    super(422, `Couldn\'t process ${field} because ${message}`);
+  }
+}
+
+class ServerProcessException extends HttpException {
+  constructor(message: string, meta?: any) {
+    super(500, message, meta);
+
+    const metadata = meta || {};
+    Logger.getInstance().logger.error(message, { metadata });
+  }
+}
+
 
 class ServiceDependencyException extends HttpException {
   constructor() {

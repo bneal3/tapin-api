@@ -32,7 +32,7 @@ class RelationshipService {
         { userIds: { $in: userIds }}
       ]
     }).sort({ score: -1 }).catch((err: Error) => { return undefined; });
-    if(relationships && relationships.length > 0) {
+    if(relationships) {
       const relationshipObjects: any[] = [];
       for(let i = 0; i < relationships.length; i++) {
         const contact = await this.user.findById(relationships[i].userIds.filter((userId: string) => { return userId !== user._id.toString(); })[0]);
@@ -89,32 +89,36 @@ class RelationshipService {
 
   public deleteRelationship = async (user: (User & mongoose.Document), _id: string) => {
     const relationship = await this.relationship.findById(_id);
-    if(relationship && relationship.userIds.includes(user._id.toString())) {
-      // FLOW: Check to see if there are any pending meetings
-      const firstId: any = new mongoose.Types.ObjectId(relationship.userIds[0]);
-      const secondId: any = new mongoose.Types.ObjectId(relationship.userIds[1]);
-      const meetings = await MeetingModel.find({
-        $or: [{
-          initiator: firstId,
-          recipient: secondId
-        }, {
-          initiator: secondId,
-          recipient: firstId
-        }],
-        status: { $in: [MeetingStatus.Pending, MeetingStatus.Accepted] },
-        dateEnd: { $gt: new Date() }
-      });
-      if(meetings.length > 0) {
-        for(let i = 0; i < meetings.length; i++) {
-          // FLOW: Delete gcal event
-          const client = await calendar.createClient(user.googleRefreshToken);
-          await calendar.cancelEvent(client, meetings[i].googleEventId);
+    if(relationship) {
+      if(relationship.userIds.includes(user._id.toString())) {
+        // FLOW: Check to see if there are any pending meetings
+        const firstId: any = new mongoose.Types.ObjectId(relationship.userIds[0]);
+        const secondId: any = new mongoose.Types.ObjectId(relationship.userIds[1]);
+        const meetings = await MeetingModel.find({
+          $or: [{
+            initiator: firstId,
+            recipient: secondId
+          }, {
+            initiator: secondId,
+            recipient: firstId
+          }],
+          status: { $in: [MeetingStatus.Pending, MeetingStatus.Accepted] },
+          dateEnd: { $gt: new Date() }
+        });
+        if(meetings.length > 0) {
+          for(let i = 0; i < meetings.length; i++) {
+            // FLOW: Delete gcal event
+            const client = await calendar.createClient(user.googleRefreshToken);
+            await calendar.cancelEvent(client, meetings[i].googleEventId);
+          }
         }
+        // FLOW: Delete object
+        return this.relationship.findByIdAndDelete(relationship._id);
+      } else {
+        throw new NotAuthorizedException();
       }
-      // FLOW: Delete object
-      return this.relationship.findByIdAndDelete(relationship._id);
     } else {
-      throw new BadParametersException();
+      throw new BadParametersException(`id`, `it does not exist in the system`);
     }
   }
 
