@@ -42,7 +42,7 @@ class RelationshipController implements Controller {
         next(err);
       }
     } else {
-      next(new BadParametersException());
+      next(new BadParametersException(`contact info`, `it is either not a valid contactId or there is not sufficient information to create a new contact`));
     }
   }
 
@@ -55,7 +55,7 @@ class RelationshipController implements Controller {
         next(err);
       }
     } else {
-      next(new BadParametersException());
+      next(new BadParametersException(`id`, `not a valid id`));
     }
   }
 }

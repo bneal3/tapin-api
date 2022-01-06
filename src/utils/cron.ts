@@ -104,7 +104,7 @@ class Cron {
         const jobId = `${relationshipObject.user._id.toString()}:${relationship.userIds.filter((userId: string) => { return userId !== relationshipObject.user._id.toString(); })[0]}`;
         const job = await queue.getJob(jobId);
         // FLOW: Check if time between now and last meeting is greater than minimum follow up reminder time (1 month)
-        if((new Date()).getTime() - meetings[0].dateEnd.getTime() >= Number(process.env.MINIMUM_REMINDER_TIME) * 30 && !job) { featuredIndex = index; }
+        if(meetings.length > 0 && (new Date()).getTime() - meetings[0].dateEnd.getTime() >= Number(process.env.MINIMUM_REMINDER_TIME) * 30 && !job) { featuredIndex = index; }
       });
       if(featuredIndex >= 0) {
         // FLOW: Get featuredUser

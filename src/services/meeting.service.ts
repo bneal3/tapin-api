@@ -1,6 +1,6 @@
 import * as mongoose from 'mongoose';
 
-import { HttpException, ObjectNotFoundException, BadParametersException, UnrecognizedCredentialsException, ServerProcessException  } from '../utils/index';
+import { HttpException, ObjectNotFoundException, BadParametersException, NotAuthorizedException, ServerProcessException  } from '../utils/index';
 import { AccessType } from '../interfaces/index';
 import { MeetingModel, Meeting, MeetingStatus, CreateMeetingDto, EditMeetingDto, RelationshipModel, Relationship, UserModel, User } from '../models/index';
 import { calendar, logger, email, EmailTemplate } from '../utils/index';
@@ -90,7 +90,7 @@ class MeetingService {
       // FLOW: Return meeting
       return meeting;
     } else {
-      throw new BadParametersException();
+      throw new BadParametersException(`recipientId`, `it does not exist in the system`);
     }
   }
 
@@ -101,30 +101,34 @@ class MeetingService {
       const recipient = <User & mongoose.Document>(await meeting.populate('recipient').execPopulate()).recipient;
       if(initiator._id.equals(user._id) || recipient._id.equals(user._id)) { // FLOW: Is editing user a part of the meeting
         const editMeetingObject: any = {};
-        // FLOW: Status logic
+        // FLOW: status
         if(editMeetingData.status) {
           if(initiator._id.equals(user._id)) {
-            if(editMeetingData.status === MeetingStatus.Canceled && meeting.dateEnd.getTime() > Date.now()) {
-              const client = await calendar.createClient(user.googleRefreshToken);
-              await calendar.cancelEvent(client, meeting.googleEventId);
-              // FLOW: Send cancelation email
-              const emailData = await email.coreFormat(recipient, user, user._id);
-              const formattedStartDate = email.formatDate(meeting.dateStart);
-              const formattedEndDate = email.formatDate(meeting.dateEnd);
-              await email.sendTemplateEmail(EmailTemplate.Canceled, [{ email: recipient.email , name: recipient.name }], {
-                FIRSTNAME: emailData.recipient.first,
-                LASTNAME: emailData.recipient.last,
-                FRIENDFIRST: emailData.friend.first,
-                FRIENDLAST: emailData.friend.last,
-                STARTTIME: formattedStartDate,
-                ENDTIME: formattedEndDate,
-                SCORE: emailData.scoreData.score,
-                SCOREPOSITION: emailData.scoreData.position,
-                SCOREPERCENTAGE: emailData.scoreData.percentage,
-                APPURL: process.env.APP_URL
-              }, { name: process.env.APP_NAME, email: process.env.NOREPLY_EMAIL });
+            if(meeting.dateEnd.getTime() > Date.now()) {
+              if(editMeetingData.status === MeetingStatus.Canceled) {
+                const client = await calendar.createClient(user.googleRefreshToken);
+                await calendar.cancelEvent(client, meeting.googleEventId);
+                // FLOW: Send cancelation email
+                const emailData = await email.coreFormat(recipient, user, user._id);
+                const formattedStartDate = email.formatDate(meeting.dateStart);
+                const formattedEndDate = email.formatDate(meeting.dateEnd);
+                await email.sendTemplateEmail(EmailTemplate.Canceled, [{ email: recipient.email , name: recipient.name }], {
+                  FIRSTNAME: emailData.recipient.first,
+                  LASTNAME: emailData.recipient.last,
+                  FRIENDFIRST: emailData.friend.first,
+                  FRIENDLAST: emailData.friend.last,
+                  STARTTIME: formattedStartDate,
+                  ENDTIME: formattedEndDate,
+                  SCORE: emailData.scoreData.score,
+                  SCOREPOSITION: emailData.scoreData.position,
+                  SCOREPERCENTAGE: emailData.scoreData.percentage,
+                  APPURL: process.env.APP_URL
+                }, { name: process.env.APP_NAME, email: process.env.NOREPLY_EMAIL });
+              } else {
+                throw new BadParametersException(`status`, `the current status does not allow for that change`);
+              }
             } else {
-              delete editMeetingData.status;
+              throw new BadParametersException(`status`, `this meeting has expired`);
             }
           } else {
             if(meeting.dateEnd.getTime() > Date.now()) { // FLOW: Can only Accept, Reject or Cancel if dateEnd is greater than now
@@ -252,14 +256,22 @@ class MeetingService {
                   APPURL: process.env.APP_URL
                 }, { name: process.env.APP_NAME, email: process.env.NOREPLY_EMAIL });
               } else {
-                delete editMeetingData.status;
+                throw new BadParametersException(`status`, `the current status does not allow for that change`);
               }
+            } else {
+              throw new BadParametersException(`status`, `this meeting has expired`)
             }
           }
         }
-        // FLOW: Property logic
-        if(initiator._id.equals(user._id)) {
-          if(editMeetingData.timeStart || editMeetingData.timeEnd) {
+        // FLOW: title
+        if(editMeetingData.title) {
+          if(!initiator._id.equals(user._id)) {
+            throw new BadParametersException(`title`, `editing user is not the initiator`);
+          }
+        }
+        // FLOW: timeStart & timeEnd
+        if(editMeetingData.timeStart || editMeetingData.timeEnd) {
+          if(initiator._id.equals(user._id)) {
             if(meeting.status !== MeetingStatus.Canceled && meeting.dateEnd.getTime() > Date.now()) {
               let dateStart = meeting.dateStart;
               let dateEnd = meeting.dateEnd;
@@ -292,12 +304,14 @@ class MeetingService {
               }, { name: process.env.APP_NAME, email: process.env.NOREPLY_EMAIL });
               // FLOW: Set meeting status to pending
               editMeetingData.status = MeetingStatus.Pending;
+            } else {
+              throw new BadParametersException(`dateStart or dateEnd`, `meeting is either canceled or dateEnd has passed`);
             }
+          } else {
+            throw new BadParametersException(`dateStart or dateEnd`, `editing user is not the initiator`);
           }
-        } else {
-          if(editMeetingData.title) { delete editMeetingData.title; }
         }
-        // FLOW: Confirmed logic
+        // FLOW: confirmed
         if(editMeetingData.confirmed) {
           if((meeting.status === MeetingStatus.Pending || meeting.status === MeetingStatus.Accepted) && meeting.dateEnd.getTime() < Date.now()) {
             if(!meeting.confirmed.includes(user._id.toString())) {
@@ -308,19 +322,27 @@ class MeetingService {
               await this.relationship.findByIdAndUpdate(relationship._id, { score: relationship.score + 40 }, { new: true });
               // FLOW: Add to editMeetingObject
               Object.assign(editMeetingObject, { $push: { confirmed: user._id.toString() }});
+              delete editMeetingData.confirmed;
+            } else {
+              throw new BadParametersException(`confirmed`, `editing user has already confirmed`);
             }
+          } else {
+            throw new BadParametersException(`confirmed`, `status is not Pending or Accepted or it isn't after dateEnd yet`);
           }
-          delete editMeetingData.confirmed;
         }
+        // FLOW: Status update catch all
         if(editMeetingData.status) { editMeetingData.dateStatusLastUpdated = new Date(); }
+        // FLOW: Merge editMeetingData into editMeetingObject which is general object
         Object.assign(editMeetingObject, editMeetingData);
+        // FLOW: Update meeting
         meeting = await this.meeting.findByIdAndUpdate(meeting._id, editMeetingObject, { new: true });
+        // FLOW: Return meeting
         return meeting;
       } else {
-        throw new UnrecognizedCredentialsException();
+        throw new NotAuthorizedException();
       }
     } else {
-      throw new BadParametersException();
+      throw new BadParametersException(`id`, 'it does not exist in the system');
     }
   }
 
@@ -352,10 +374,10 @@ class MeetingService {
         // FLOW: Delete object
         return this.meeting.findByIdAndDelete(meeting._id);
       } else {
-        throw new UnrecognizedCredentialsException();
+        throw new NotAuthorizedException();
       }
     } else {
-      throw new BadParametersException();
+      throw new BadParametersException(`id`, `it does not exist in the system`);
     }
   }
 

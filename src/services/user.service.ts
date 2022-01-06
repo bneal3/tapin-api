@@ -3,7 +3,7 @@ import * as mongoose from 'mongoose';
 import * as jwt from 'jsonwebtoken';
 import * as path from 'path';
 
-import { HttpException, NotAuthorizedException, ObjectAlreadyExistsException, ObjectNotFoundException, ServerProcessException, BadParametersException, UnrecognizedCredentialsException } from '../utils/index';
+import { HttpException, NotAuthorizedException, ObjectAlreadyExistsException, ObjectNotFoundException, ServerProcessException, BadParametersException } from '../utils/index';
 import { AuthenticationModel, Authentication, RelationshipModel, UserModel, User, EditUserDto, EditContactDto, UserDto } from '../models/index';
 import { logger } from '../utils/index';
 import { authenticationService } from '../services/index';
@@ -58,19 +58,23 @@ class UserService {
   public editContact = async (user: (User & mongoose.Document), _id: string, editContactData: EditContactDto) => {
     let contact = await this.user.findById(_id);
     if(contact) {
-      const relationship = await this.relationship.findOne({ userIds: { $in: [user._id.toString(), contact._id.toString()] } });
-      if(relationship) {
-        try {
-          contact = await this.user.findByIdAndUpdate(contact._id, editContactData, { new: true });
-          return contact;
-        } catch (err) {
-          throw new HttpException(400, err.message);
+      if(!contact.dateRegistered) {
+        const relationship = await this.relationship.findOne({ userIds: { $in: [user._id.toString(), contact._id.toString()] } });
+        if(relationship) {
+          try {
+            contact = await this.user.findByIdAndUpdate(contact._id, editContactData, { new: true });
+            return contact;
+          } catch (err) {
+            throw new HttpException(400, err.message);
+          }
+        } else {
+          throw new NotAuthorizedException();
         }
       } else {
-        throw new UnrecognizedCredentialsException();
+        throw new BadParametersException(`id`, `it is assigned to a registered user`);
       }
     } else {
-      throw new BadParametersException();
+      throw new BadParametersException(`id`, `it could not be found in the system`);
     }
   }
 
@@ -81,7 +85,7 @@ class UserService {
     email = email.replace(/\s/g,'');
     // VALIDATE: User submits actual email address
     const regex = RegExp(/^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/);
-    if(!regex.test(email)) { throw new HttpException(400, 'You must enter a valid email address'); }
+    if(!regex.test(email)) { throw new BadParametersException(`email`, `it isn't a valid email address`); }
     return email;
   }
 
