@@ -7,7 +7,7 @@ const { OAuth2Client } = require('google-auth-library');
 import { HttpException, ServerProcessException, BadParametersException, NotAuthorizedException, UnrecognizedCredentialsException, ObjectAlreadyExistsException, ObjectNotFoundException } from '../utils/index';
 import { AccessType, AuthenticationTokenData } from '../interfaces/index';
 import { AuthenticationModel, Authentication, SignInDto, MeetingModel, Meeting, RelationshipModel, Relationship, UserModel, User } from '../models/index';
-import { logger } from '../utils/index';
+import { analytics, logger } from '../utils/index';
 import { userService } from '../services/index';
 
 class AuthenticationService {
@@ -62,6 +62,8 @@ class AuthenticationService {
           });
           await Promise.all([updatedRelationships, updatedMeetings, deletedContacts]).then(() => {});
         }
+        analytics.identify(user);
+        analytics.track(user, `user signed in`);
         return await this.sanitizeTokenResponse(user);
       } catch (err) {
         throw new HttpException(400, err.message);

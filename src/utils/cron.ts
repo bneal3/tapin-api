@@ -54,10 +54,12 @@ class Cron {
         status: { $nin: [MeetingStatus.Rejected, MeetingStatus.Canceled] },
         'confirmed.0': { "$exists": true }
       }).sort({ dateEnd: -1 });
-      // FLOW: Calculate ShipScore
-      const value = relationship.score / Math.pow(((new Date()).getDay() - meetings[0].dateEnd.getDay()) + 2, Number(process.env.GRAVITY_CONSTANT));
-      // FLOW: Update relationship
-      await RelationshipModel.findByIdAndUpdate(relationship._id, { value: value });
+      if(meetings.length > 0) {
+        // FLOW: Calculate ShipScore
+        const value = relationship.score / Math.pow(((new Date()).getDay() - meetings[0].dateEnd.getDay()) + 2, Number(process.env.GRAVITY_CONSTANT));
+        // FLOW: Update relationship
+        await RelationshipModel.findByIdAndUpdate(relationship._id, { value: value });
+      }
     });
   }
 
@@ -76,7 +78,7 @@ class Cron {
     const users = await UserModel.find({});
     const relationshipObjects: any[] = [];
     users.forEach(async (user) => {
-      const relationships = await RelationshipModel.find({ userIds: user._id.toString() }).sort(['value', 1]);
+      const relationships = await RelationshipModel.find({ userIds: user._id.toString() }).sort({ value: 1 });
       relationshipObjects.push({
         user: user,
         relationships: relationships

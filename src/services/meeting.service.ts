@@ -3,7 +3,7 @@ import * as mongoose from 'mongoose';
 import { HttpException, ObjectNotFoundException, BadParametersException, NotAuthorizedException, ServerProcessException  } from '../utils/index';
 import { AccessType } from '../interfaces/index';
 import { MeetingModel, Meeting, MeetingStatus, CreateMeetingDto, EditMeetingDto, RelationshipModel, Relationship, UserModel, User } from '../models/index';
-import { calendar, logger, email, EmailTemplate } from '../utils/index';
+import { analytics, calendar, logger, email, EmailTemplate } from '../utils/index';
 import { authenticationService, relationshipService } from '../services/index';
 
 class MeetingService {
@@ -85,9 +85,13 @@ class MeetingService {
         SCOREPOSITION: emailData.scoreData.position,
         SCOREPERCENTAGE: emailData.scoreData.percentage,
         TOKEN: authentication.token,
-        APPURL: process.env.APP_URL
+        APPURL: process.env.APP_URL,
+        NOREPLYEMAIL: process.env.NOREPLY_EMAIL
       }, { name: process.env.APP_NAME, email: process.env.NOREPLY_EMAIL });
       // FLOW: Return meeting
+      analytics.track(user, `tap-in created`, {
+        meetingId: meeting._id.toString()
+      });
       return meeting;
     } else {
       throw new BadParametersException(`recipientId`, `it does not exist in the system`);
@@ -122,7 +126,9 @@ class MeetingService {
                   SCORE: emailData.scoreData.score,
                   SCOREPOSITION: emailData.scoreData.position,
                   SCOREPERCENTAGE: emailData.scoreData.percentage,
-                  APPURL: process.env.APP_URL
+                  SCORERELATION: 'your',
+                  APPURL: process.env.APP_URL,
+                  NOREPLYEMAIL: process.env.NOREPLY_EMAIL
                 }, { name: process.env.APP_NAME, email: process.env.NOREPLY_EMAIL });
               } else {
                 throw new BadParametersException(`status`, `the current status does not allow for that change`);
@@ -158,7 +164,8 @@ class MeetingService {
                   SCORE: emailData.scoreData.score,
                   SCOREPOSITION: emailData.scoreData.position,
                   SCOREPERCENTAGE: emailData.scoreData.percentage,
-                  APPURL: process.env.APP_URL
+                  APPURL: process.env.APP_URL,
+                  NOREPLYEMAIL: process.env.NOREPLY_EMAIL
                 }, { name: process.env.APP_NAME, email: process.env.NOREPLY_EMAIL });
                 // FLOW: Queue followup emails after the event
                 const delay = (meeting.dateEnd.getTime() - (new Date()).getTime()) + Number(process.env.POST_EVENT_EMAIL_DELAY);
@@ -225,7 +232,8 @@ class MeetingService {
                   SCORE: emailData.scoreData.score,
                   SCOREPOSITION: emailData.scoreData.position,
                   SCOREPERCENTAGE: emailData.scoreData.percentage,
-                  APPURL: process.env.APP_URL
+                  APPURL: process.env.APP_URL,
+                  NOREPLYEMAIL: process.env.NOREPLY_EMAIL
                 }, { name: process.env.APP_NAME, email: process.env.NOREPLY_EMAIL });
               } else if(editMeetingData.status == MeetingStatus.Canceled && meeting.status !== MeetingStatus.Pending) {
                 if(user.dateRegistered) {
@@ -253,7 +261,9 @@ class MeetingService {
                   SCORE: emailData.scoreData.score,
                   SCOREPOSITION: emailData.scoreData.position,
                   SCOREPERCENTAGE: emailData.scoreData.percentage,
-                  APPURL: process.env.APP_URL
+                  SCORERELATION: 'their',
+                  APPURL: process.env.APP_URL,
+                  NOREPLYEMAIL: process.env.NOREPLY_EMAIL
                 }, { name: process.env.APP_NAME, email: process.env.NOREPLY_EMAIL });
               } else {
                 throw new BadParametersException(`status`, `the current status does not allow for that change`);
@@ -300,7 +310,8 @@ class MeetingService {
                 SCOREPOSITION: emailData.scoreData.position,
                 SCOREPERCENTAGE: emailData.scoreData.percentage,
                 TOKEN: authentication.token,
-                APPURL: process.env.APP_URL
+                APPURL: process.env.APP_URL,
+                NOREPLYEMAIL: process.env.NOREPLY_EMAIL
               }, { name: process.env.APP_NAME, email: process.env.NOREPLY_EMAIL });
               // FLOW: Set meeting status to pending
               editMeetingData.status = MeetingStatus.Pending;
@@ -322,6 +333,15 @@ class MeetingService {
               await this.relationship.findByIdAndUpdate(relationship._id, { score: relationship.score + 40 }, { new: true });
               // FLOW: Add to editMeetingObject
               Object.assign(editMeetingObject, { $push: { confirmed: user._id.toString() }});
+              if(initiator._id.isEqual(user._id)) {
+                analytics.track(user, `initiator confirmed tap-in`, {
+                  meetingId: meeting._id.toString()
+                });
+              } else {
+                analytics.track(user, `recipient confirmed tap-in`, {
+                  meetingId: meeting._id.toString()
+                });
+              }
               delete editMeetingData.confirmed;
             } else {
               throw new BadParametersException(`confirmed`, `editing user has already confirmed`);
@@ -331,7 +351,18 @@ class MeetingService {
           }
         }
         // FLOW: Status update catch all
-        if(editMeetingData.status) { editMeetingData.dateStatusLastUpdated = new Date(); }
+        if(editMeetingData.status) {
+          editMeetingData.dateStatusLastUpdated = new Date();
+          if(editMeetingData.status === MeetingStatus.Accepted) {
+            analytics.track(user, `tap-in accepted`, {
+              meetingId: meeting._id.toString()
+            });
+          } else if(editMeetingData.status === MeetingStatus.Happened) {
+            analytics.track(user, `tap-in happened`, {
+              meetingId: meeting._id.toString()
+            });
+          }
+        }
         // FLOW: Merge editMeetingData into editMeetingObject which is general object
         Object.assign(editMeetingObject, editMeetingData);
         // FLOW: Update meeting
@@ -369,7 +400,9 @@ class MeetingService {
           SCORE: emailData.scoreData.score,
           SCOREPOSITION: emailData.scoreData.position,
           SCOREPERCENTAGE: emailData.scoreData.percentage,
-          APPURL: process.env.APP_URL
+          SCORERELATION: 'your',
+          APPURL: process.env.APP_URL,
+          NOREPLYEMAIL: process.env.NOREPLY_EMAIL
         }, { name: process.env.APP_NAME, email: process.env.NOREPLY_EMAIL });
         // FLOW: Delete object
         return this.meeting.findByIdAndDelete(meeting._id);
