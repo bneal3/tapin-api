@@ -7,7 +7,7 @@ const { OAuth2Client } = require('google-auth-library');
 import { HttpException, ServerProcessException, BadParametersException, NotAuthorizedException, UnrecognizedCredentialsException, ObjectAlreadyExistsException, ObjectNotFoundException } from '../utils/index';
 import { AccessType, AuthenticationTokenData } from '../interfaces/index';
 import { AuthenticationModel, Authentication, SignInDto, MeetingModel, Meeting, RelationshipModel, Relationship, UserModel, User } from '../models/index';
-import { logger } from '../utils/index';
+import { analytics, logger } from '../utils/index';
 import { userService } from '../services/index';
 
 class AuthenticationService {
@@ -19,7 +19,7 @@ class AuthenticationService {
 
   public signIn = async (signInData: SignInDto) => {
     // FLOW: Create Google OAuth Client and verify auth code
-    const client = new OAuth2Client(process.env.GOOGLE_AUTH_CLIENT_ID, process.env.GOOGLE_AUTH_CLIENT_SECRET, process.env.APP_URL);
+    const client = new OAuth2Client(process.env.GOOGLE_AUTH_CLIENT_ID, process.env.GOOGLE_AUTH_CLIENT_SECRET, process.env.REDIRECT_URIS.split(","));
     const payload = await this.verifyGoogleAuthCode(client, signInData.googleAuthCode);
     let contacts: (User & mongoose.Document)[] = await this.user.find({ email: payload.userInfo['email'] }).sort('dateCreated');
     if(contacts.length > 0 && contacts[0].dateRegistered) {
@@ -62,6 +62,8 @@ class AuthenticationService {
           });
           await Promise.all([updatedRelationships, updatedMeetings, deletedContacts]).then(() => {});
         }
+        analytics.identify(user);
+        analytics.track(user, `user signed in`);
         return await this.sanitizeTokenResponse(user);
       } catch (err) {
         throw new HttpException(400, err.message);

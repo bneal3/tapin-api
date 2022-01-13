@@ -14,7 +14,7 @@ class Calendar {
 
   public async createClient(refreshToken: string) {
     try {
-      const client = new this.api.auth.OAuth2(process.env.GOOGLE_AUTH_CLIENT_ID, process.env.GOOGLE_AUTH_CLIENT_SECRET, process.env.APP_URL);
+      const client = new this.api.auth.OAuth2(process.env.GOOGLE_AUTH_CLIENT_ID, process.env.GOOGLE_AUTH_CLIENT_SECRET, process.env.REDIRECT_URIS.split(","));
       client.setCredentials({ refresh_token: refreshToken });
       // FLOW: Check validity of refresh token
       const auth = google.oauth2({ version: 'v2', auth: client });

@@ -14,7 +14,8 @@ export enum EmailTemplate {
   PostEvent,
   Canceled,
   Reminder,
-  Updated
+  Updated,
+  Approval
 }
 
 class Email {

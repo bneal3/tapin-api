@@ -1,11 +1,8 @@
 import * as winston from 'winston';
 import { MongoDB } from 'winston-mongodb';
-import * as Amplitude from '@amplitude/node';
 
 class Logger {
   private static instance: Logger;
-  public demand: Amplitude.NodeClient;
-  public supply: Amplitude.NodeClient;
   public logger: winston.Logger;
   private transport = new MongoDB({
     level: 'info',
@@ -17,8 +14,6 @@ class Logger {
   });
 
   constructor() {
-    this.demand = Amplitude.init(process.env.AMPLITUDE_DEMAND_KEY);
-    this.supply = Amplitude.init(process.env.AMPLITUDE_SUPPLY_KEY);
     this.logger = winston.createLogger({
       exitOnError: false,
       format: winston.format.json(),

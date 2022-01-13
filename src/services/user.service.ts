@@ -5,7 +5,7 @@ import * as path from 'path';
 
 import { HttpException, NotAuthorizedException, ObjectAlreadyExistsException, ObjectNotFoundException, ServerProcessException, BadParametersException } from '../utils/index';
 import { AuthenticationModel, Authentication, RelationshipModel, UserModel, User, EditUserDto, EditContactDto, UserDto } from '../models/index';
-import { logger } from '../utils/index';
+import { analytics, logger } from '../utils/index';
 import { authenticationService } from '../services/index';
 
 class UserService {
@@ -52,6 +52,7 @@ class UserService {
         throw new HttpException(400, err.message);
       }
     }
+    analytics.identify(user);
     return user;
   }
 
