@@ -18,6 +18,14 @@ export class SignInDto {
   public googleAuthCode: string;
 }
 
+export class ApprovalDto {
+  @IsString()
+  public name: string;
+
+  @IsString()
+  public email: string;
+}
+
 const AuthenticationSchema = new mongoose.Schema({
   user: {
     ref: 'User',

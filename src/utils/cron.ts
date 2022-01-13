@@ -122,7 +122,8 @@ class Cron {
           SCORE: emailData.scoreData.score,
           SCOREPOSITION: emailData.scoreData.position,
           SCOREPERCENTAGE: emailData.scoreData.percentage,
-          APPURL: process.env.APP_URL
+          APPURL: process.env.APP_URL,
+          LANDINGPAGEURL: process.env.LANDING_PAGE_URL
         }, { name: process.env.APP_NAME, email: process.env.NOREPLY_EMAIL });
         // FLOW: Add user to cache
         const jobId = `${relationshipObject.user._id.toString()}:${relationshipObject.relationships[featuredIndex].userIds.filter((userId: string) => { return userId !== relationshipObject.user._id.toString(); })[0]}`;

@@ -81,12 +81,10 @@ class MeetingService {
         FRIENDLAST: emailData.friend.last,
         STARTTIME: formattedStartDate,
         ENDTIME: formattedEndDate,
-        SCORE: emailData.scoreData.score,
-        SCOREPOSITION: emailData.scoreData.position,
-        SCOREPERCENTAGE: emailData.scoreData.percentage,
         TOKEN: authentication.token,
         APPURL: process.env.APP_URL,
-        NOREPLYEMAIL: process.env.NOREPLY_EMAIL
+        NOREPLYEMAIL: process.env.NOREPLY_EMAIL,
+        LANDINGPAGEURL: process.env.LANDING_PAGE_URL
       }, { name: process.env.APP_NAME, email: process.env.NOREPLY_EMAIL });
       // FLOW: Return meeting
       analytics.track(user, `tap-in created`, {
@@ -123,12 +121,9 @@ class MeetingService {
                   FRIENDLAST: emailData.friend.last,
                   STARTTIME: formattedStartDate,
                   ENDTIME: formattedEndDate,
-                  SCORE: emailData.scoreData.score,
-                  SCOREPOSITION: emailData.scoreData.position,
-                  SCOREPERCENTAGE: emailData.scoreData.percentage,
-                  SCORERELATION: 'your',
                   APPURL: process.env.APP_URL,
-                  NOREPLYEMAIL: process.env.NOREPLY_EMAIL
+                  NOREPLYEMAIL: process.env.NOREPLY_EMAIL,
+                  LANDINGPAGEURL: process.env.LANDING_PAGE_URL
                 }, { name: process.env.APP_NAME, email: process.env.NOREPLY_EMAIL });
               } else {
                 throw new BadParametersException(`status`, `the current status does not allow for that change`);
@@ -165,7 +160,8 @@ class MeetingService {
                   SCOREPOSITION: emailData.scoreData.position,
                   SCOREPERCENTAGE: emailData.scoreData.percentage,
                   APPURL: process.env.APP_URL,
-                  NOREPLYEMAIL: process.env.NOREPLY_EMAIL
+                  NOREPLYEMAIL: process.env.NOREPLY_EMAIL,
+                  LANDINGPAGEURL: process.env.LANDING_PAGE_URL
                 }, { name: process.env.APP_NAME, email: process.env.NOREPLY_EMAIL });
                 // FLOW: Queue followup emails after the event
                 const delay = (meeting.dateEnd.getTime() - (new Date()).getTime()) + Number(process.env.POST_EVENT_EMAIL_DELAY);
@@ -233,7 +229,8 @@ class MeetingService {
                   SCOREPOSITION: emailData.scoreData.position,
                   SCOREPERCENTAGE: emailData.scoreData.percentage,
                   APPURL: process.env.APP_URL,
-                  NOREPLYEMAIL: process.env.NOREPLY_EMAIL
+                  NOREPLYEMAIL: process.env.NOREPLY_EMAIL,
+                  LANDINGPAGEURL: process.env.LANDING_PAGE_URL
                 }, { name: process.env.APP_NAME, email: process.env.NOREPLY_EMAIL });
               } else if(editMeetingData.status == MeetingStatus.Canceled && meeting.status !== MeetingStatus.Pending) {
                 if(user.dateRegistered) {
@@ -258,12 +255,9 @@ class MeetingService {
                   FRIENDLAST: emailData.friend.last,
                   STARTTIME: formattedStartDate,
                   ENDTIME: formattedEndDate,
-                  SCORE: emailData.scoreData.score,
-                  SCOREPOSITION: emailData.scoreData.position,
-                  SCOREPERCENTAGE: emailData.scoreData.percentage,
-                  SCORERELATION: 'their',
                   APPURL: process.env.APP_URL,
-                  NOREPLYEMAIL: process.env.NOREPLY_EMAIL
+                  NOREPLYEMAIL: process.env.NOREPLY_EMAIL,
+                  LANDINGPAGEURL: process.env.LANDING_PAGE_URL
                 }, { name: process.env.APP_NAME, email: process.env.NOREPLY_EMAIL });
               } else {
                 throw new BadParametersException(`status`, `the current status does not allow for that change`);
@@ -306,12 +300,10 @@ class MeetingService {
                 FRIENDLAST: emailData.friend.last,
                 STARTTIME: formattedStartDate,
                 ENDTIME: formattedEndDate,
-                SCORE: emailData.scoreData.score,
-                SCOREPOSITION: emailData.scoreData.position,
-                SCOREPERCENTAGE: emailData.scoreData.percentage,
                 TOKEN: authentication.token,
                 APPURL: process.env.APP_URL,
-                NOREPLYEMAIL: process.env.NOREPLY_EMAIL
+                NOREPLYEMAIL: process.env.NOREPLY_EMAIL,
+                LANDINGPAGEURL: process.env.LANDING_PAGE_URL
               }, { name: process.env.APP_NAME, email: process.env.NOREPLY_EMAIL });
               // FLOW: Set meeting status to pending
               editMeetingData.status = MeetingStatus.Pending;
@@ -397,12 +389,9 @@ class MeetingService {
           FRIENDLAST: emailData.friend.last,
           STARTTIME: formattedStartDate,
           ENDTIME: formattedEndDate,
-          SCORE: emailData.scoreData.score,
-          SCOREPOSITION: emailData.scoreData.position,
-          SCOREPERCENTAGE: emailData.scoreData.percentage,
-          SCORERELATION: 'your',
           APPURL: process.env.APP_URL,
-          NOREPLYEMAIL: process.env.NOREPLY_EMAIL
+          NOREPLYEMAIL: process.env.NOREPLY_EMAIL,
+          LANDINGPAGEURL: process.env.LANDING_PAGE_URL
         }, { name: process.env.APP_NAME, email: process.env.NOREPLY_EMAIL });
         // FLOW: Delete object
         return this.meeting.findByIdAndDelete(meeting._id);
