@@ -19,7 +19,7 @@ class AuthenticationService {
 
   public signIn = async (signInData: SignInDto) => {
     // FLOW: Create Google OAuth Client and verify auth code
-    const client = new OAuth2Client(process.env.GOOGLE_AUTH_CLIENT_ID, process.env.GOOGLE_AUTH_CLIENT_SECRET, process.env.APP_URL);
+    const client = new OAuth2Client(process.env.GOOGLE_AUTH_CLIENT_ID, process.env.GOOGLE_AUTH_CLIENT_SECRET, process.env.REDIRECT_URIS.split(","));
     const payload = await this.verifyGoogleAuthCode(client, signInData.googleAuthCode);
     let contacts: (User & mongoose.Document)[] = await this.user.find({ email: payload.userInfo['email'] }).sort('dateCreated');
     if(contacts.length > 0 && contacts[0].dateRegistered) {
